@@ -1,0 +1,5901 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+   大肥鱼笑传 v2  ·  功能版本标记（看到这一行 = 是最新版）
+   本版包含：通关后「和大肥鱼的问题」（随机深度思考延时）｜ 作者的话 ｜
+             贴吧表情 #(滑稽) ｜ 调试模式(连点日期5下) ｜
+             状态栏自适应 ｜ 经验+3后可直接去下一帖 ｜
+             图片命名 9.27-1-07 ｜ 写坏不白屏提示
+   如果你改动过这个文件，想确认功能还在：
+     双击 dfy\检查版本.bat，或搜一下 layoutCard / tb-emoji / tapDate / startQna
+  ============================================================
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>深海摸鱼法则 v2 · 大肥鱼笑传</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: #060e1a;
+    color: #e8f0ff;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+  #game {
+    width: 100%;
+    max-width: 900px;
+    height: 96vh;
+    max-height: 920px;
+    position: relative;
+    background: linear-gradient(180deg, #0d1f3c 0%, #112a4a 40%, #0a1628 100%);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 0 80px rgba(74, 158, 255, 0.18), 0 0 0 1px rgba(74, 158, 255, 0.15);
+  }
+
+  /* ---------- 通用屏幕 ---------- */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    z-index: 100;
+    background: radial-gradient(circle at 50% 40%, #14305a 0%, #0d1f3c 40%, #060e1a 100%);
+    transition: opacity 0.8s ease;
+    padding: 26px;
+    text-align: center;
+  }
+  .screen.hidden { opacity: 0; pointer-events: none; }
+  .whale-icon {
+    font-size: 72px; margin-bottom: 18px;
+    filter: drop-shadow(0 0 24px rgba(74, 158, 255, 0.7));
+    animation: float 3.5s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-14px) rotate(3deg); }
+  }
+  .screen h1 {
+    font-size: 36px; letter-spacing: 8px; font-weight: 800;
+    background: linear-gradient(90deg, #4a9eff, #a8dcff, #4a9eff);
+    background-size: 200% auto;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+    animation: shine 4s linear infinite;
+  }
+  @keyframes shine { to { background-position: 200% center; } }
+  .screen .subtitle {
+    font-size: 13px; color: #6a8ab0; letter-spacing: 3px;
+    margin-bottom: 30px;
+  }
+  .start-btn {
+    padding: 15px 52px; font-size: 15px; color: #fff;
+    background: linear-gradient(135deg, #1a5fb4, #4a9eff);
+    border: none; border-radius: 40px; cursor: pointer;
+    letter-spacing: 4px; font-weight: 600;
+    transition: all 0.3s;
+    box-shadow: 0 8px 32px rgba(74, 158, 255, 0.45);
+    font-family: inherit;
+    position: relative; overflow: hidden;
+  }
+  .start-btn::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transform: translateX(-100%); transition: transform 0.6s;
+  }
+  .start-btn:hover::before { transform: translateX(100%); }
+  .start-btn:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(74, 158, 255, 0.65); }
+  .ghost-btn {
+    margin-top: 14px; padding: 11px 34px; font-size: 13px; color: #a0c0e0;
+    background: rgba(26, 58, 92, 0.45);
+    border: 1px solid rgba(74, 158, 255, 0.25);
+    border-radius: 40px; cursor: pointer; font-family: inherit;
+    letter-spacing: 2px; transition: all 0.25s;
+  }
+  .ghost-btn:hover { background: rgba(74,158,255,0.2); border-color: #4a9eff; color: #fff; }
+  #title-continue { display: none; }
+  .title-note { margin-top: 22px; font-size: 11px; color: #4d6a8a; letter-spacing: 1px; line-height: 1.9; }
+
+  /* ---------- 状态栏 ---------- */
+  #status-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 10px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(8, 18, 34, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(74, 158, 255, 0.18);
+    z-index: 60; font-size: 12px;
+  }
+  .status-left { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .status-item { color: #7a9cc0; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; }
+  .status-item b { color: #4a9eff; font-weight: 700; transition: all 0.3s; }
+  .status-item.pulse b { color: #7ec8ff; text-shadow: 0 0 12px rgba(74, 158, 255, 0.9); }
+  .status-item.up b { color: #4aff8a; text-shadow: 0 0 12px rgba(74, 255, 138, 0.8); }
+  .status-item.down b { color: #ff6a6a; text-shadow: 0 0 12px rgba(255, 106, 106, 0.8); }
+  .status-right { display: flex; gap: 8px; }
+  .mini-btn {
+    padding: 6px 14px; font-size: 12px; color: #a0c0e0;
+    background: rgba(26, 58, 92, 0.5);
+    border: 1px solid rgba(74, 158, 255, 0.25);
+    border-radius: 20px; cursor: pointer;
+    font-family: inherit; transition: all 0.25s; letter-spacing: 1px;
+  }
+  .mini-btn:hover:not(:disabled) {
+    background: rgba(74, 158, 255, 0.22);
+    border-color: #4a9eff; color: #fff;
+    box-shadow: 0 0 16px rgba(74, 158, 255, 0.35);
+  }
+  .mini-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+  /* ---------- 气泡背景 ---------- */
+  #scene { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+  .bubble {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(126, 200, 255, 0.22), rgba(74, 158, 255, 0.04));
+    border: 1px solid rgba(126, 200, 255, 0.14);
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    from { transform: translateY(0) translateX(0); opacity: 0; }
+    10% { opacity: 1; }
+    to { transform: translateY(-110vh) translateX(30px); opacity: 0; }
+  }
+
+  /* ---------- 帖子卡片 ---------- */
+  #post-card {
+    position: absolute;
+    top: 42px; left: 0; right: 0; bottom: 0;   /* top 会被 layoutCard() 按状态栏真实高度覆盖 */
+    background: linear-gradient(180deg, #0e2244 0%, #0a1a32 100%);
+    z-index: 55;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeIn 0.5s ease;
+  }
+  #post-card.event {
+    background: linear-gradient(180deg, #2a1220 0%, #1a0d1c 45%, #0a1a32 100%);
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-7px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(3px); }
+  }
+  #post-card.shake { animation: shake 0.5s ease; }
+
+  #post-header {
+    padding: 14px 22px 12px;
+    border-bottom: 1px solid rgba(74, 158, 255, 0.18);
+    background: rgba(10, 22, 40, 0.5);
+    flex-shrink: 0;
+  }
+  #post-card.event #post-header {
+    border-bottom-color: rgba(255, 92, 122, 0.35);
+    background: rgba(46, 14, 26, 0.55);
+  }
+  #post-meta {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-size: 11px; color: #6a8ab0; margin-bottom: 7px; letter-spacing: 0.5px;
+  }
+  .event-badge {
+    background: linear-gradient(135deg, #d92b4b, #ff6a6a);
+    color: #fff; font-weight: 800; font-size: 10px;
+    padding: 3px 9px; border-radius: 20px; letter-spacing: 2px;
+    box-shadow: 0 0 18px rgba(255, 74, 106, 0.7);
+    animation: badgePulse 1.4s ease-in-out infinite;
+  }
+  @keyframes badgePulse {
+    0%, 100% { box-shadow: 0 0 18px rgba(255, 74, 106, 0.7); }
+    50% { box-shadow: 0 0 30px rgba(255, 74, 106, 1); }
+  }
+  .meta-chip {
+    background: rgba(74, 158, 255, 0.12);
+    border: 1px solid rgba(74, 158, 255, 0.2);
+    padding: 2px 8px; border-radius: 20px; color: #8ab4e8;
+  }
+
+  #post-title-text {
+    font-size: 16px; font-weight: 700; color: #a8dcff;
+    letter-spacing: 0.5px; line-height: 1.5;
+  }
+  #post-card.event #post-title-text { color: #ffb8c6; }
+  #post-source { margin-top: 6px; font-size: 10px; color: #4d6a8a; }
+  #post-source a { color: #4a7fb0; text-decoration: none; border-bottom: 1px dotted #4a7fb0; }
+  #post-source a:hover { color: #7ec8ff; }
+
+  #post-floor-area {
+    flex: 1; overflow-y: auto;
+    padding: 16px 22px 90px;
+    scroll-behavior: smooth;
+  }
+  #post-floor-area::-webkit-scrollbar { width: 5px; }
+  #post-floor-area::-webkit-scrollbar-thumb { background: rgba(74, 158, 255, 0.3); border-radius: 3px; }
+
+  .floor-line {
+    margin-bottom: 13px;
+    padding: 10px 14px;
+    background: rgba(26, 58, 92, 0.28);
+    border-left: 3px solid rgba(74, 158, 255, 0.5);
+    border-radius: 6px;
+    animation: floorIn 0.4s ease;
+  }
+  .floor-line.self { background: rgba(74, 158, 255, 0.15); border-left-color: #7ec8ff; }
+  .floor-line.op { border-left-color: #ffb86a; background: rgba(92, 62, 26, 0.24); }
+  #post-card.event .floor-line { background: rgba(92, 26, 44, 0.26); border-left-color: rgba(255, 106, 138, 0.6); }
+  #post-card.event .floor-line.self { background: rgba(74, 158, 255, 0.15); border-left-color: #7ec8ff; }
+  @keyframes floorIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .floor-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+  .floor-speaker { font-size: 12px; color: #4a9eff; font-weight: 700; letter-spacing: 0.5px; }
+  .floor-line.self .floor-speaker { color: #7ec8ff; }
+  .floor-line.op .floor-speaker { color: #ffb86a; }
+  .floor-num { font-size: 10px; color: #4d6a8a; }
+  .floor-text { font-size: 13px; line-height: 1.75; color: #c8dcf0; }
+  .floor-line.self .floor-text { color: #e0eeff; }
+  .floor-acts { margin-top: 6px; font-size: 10px; color: #4d6a8a; display: flex; gap: 14px; }
+
+  /* 台词里带 url 的时候，渲染成一个能点的链接卡片（新标签页打开） */
+  .link-card {
+    display: flex; align-items: center; gap: 9px;
+    margin-top: 9px; padding: 11px 14px;
+    background: rgba(74, 158, 255, 0.12);
+    border: 1px solid rgba(74, 158, 255, 0.45);
+    border-radius: 8px;
+    text-decoration: none;
+    color: #cfe6ff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  }
+  .link-card:hover {
+    background: rgba(74, 158, 255, 0.24);
+    border-color: #7ec8ff;
+    transform: translateY(-1px);
+  }
+  .link-card .link-icon { font-size: 16px; line-height: 1; }
+  .link-card .link-text { font-weight: 700; color: #e0eeff; }
+  .link-card .link-url {
+    margin-left: auto; font-size: 11px; color: #6f93b8;
+    font-family: ui-monospace, Consolas, monospace;
+    max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .link-card .link-go { font-size: 11px; color: #7ec8ff; white-space: nowrap; }
+  #post-card.event .link-card { background: rgba(255, 106, 138, 0.14); border-color: rgba(255, 106, 138, 0.5); }
+  #post-card.event .link-card:hover { background: rgba(255, 106, 138, 0.26); border-color: #ff8fa8; }
+
+  /* ---------------- 图片：统一尺寸，别一会大一会小 ----------------
+     单张：撑满卡片宽度，超高的按比例缩进框里（object-fit: contain，不裁切）
+     多张：等高等宽排成网格，一眼看得清
+     点一下都能放大                                          */
+  .floor-img {
+    display: block;
+    max-width: 100%;        /* 不写 width:100% —— 小图保持原始尺寸，不会被拉糊 */
+    height: auto;
+    max-height: 380px;
+    object-fit: scale-down; /* 只会缩小，永远不会放大超过原图 */
+    background: rgba(4, 12, 24, 0.55);
+    border: 1px solid rgba(74, 158, 255, 0.16);
+    border-radius: 8px;
+    margin-top: 8px;
+    cursor: zoom-in;
+  }
+  .floor-img:hover { border-color: rgba(126, 200, 255, 0.55); }
+
+  .floor-image-wrap {
+    margin-bottom: 14px; padding: 10px;
+    background: rgba(0, 0, 0, 0.22); border-radius: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+    animation: floorIn 0.4s ease;
+  }
+  .floor-image-wrap img {
+    width: 100%; height: 170px; object-fit: scale-down;
+    background: rgba(4, 12, 24, 0.55);
+    border: 1px solid rgba(74, 158, 255, 0.16);
+    border-radius: 8px;
+    display: block; cursor: zoom-in;
+    margin: 0;
+  }
+  .floor-image-wrap img:hover { border-color: rgba(126, 200, 255, 0.55); }
+  /* 只有一张的时候别缩成小方块，直接撑满 */
+  .floor-image-wrap img:only-child { height: auto; max-height: 380px; }
+
+  /* 配图占位（图片尚未补齐时不报错，优雅降级） */
+  .img-placeholder {
+    width: 100%; min-height: 92px;
+    border: 1px dashed rgba(126, 200, 255, 0.35);
+    border-radius: 10px;
+    background: repeating-linear-gradient(45deg, rgba(74,158,255,0.05) 0 10px, transparent 10px 20px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 5px; padding: 14px; text-align: center;
+  }
+  .img-placeholder .ph-icon { font-size: 20px; opacity: 0.85; }
+  .img-placeholder .ph-title { font-size: 12px; color: #8ab4e8; font-weight: 700; }
+  .img-placeholder .ph-desc { font-size: 11px; color: #93a9c0; line-height: 1.6; max-width: 460px; }
+  .img-placeholder .ph-path { font-size: 10px; color: #5f7fa0; font-family: Consolas, monospace; }
+  .img-placeholder .ph-link { font-size: 10px; color: #4a7fb0; }
+
+  #post-hint {
+    position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #4a9eff; letter-spacing: 3px;
+    animation: blink 1.6s ease-in-out infinite; pointer-events: none;
+    text-shadow: 0 0 12px rgba(74, 158, 255, 0.7);
+  }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  /* ---------- 选项 ---------- */
+  .post-choices {
+    margin-top: 16px; display: flex; flex-direction: column; gap: 8px;
+    animation: fadeIn 0.5s ease;
+  }
+  .post-choice-btn, .choice-btn {
+    padding: 12px 16px; font-size: 13px; color: #c0d8f0;
+    background: linear-gradient(135deg, rgba(26,58,92,0.7), rgba(20,45,75,0.7));
+    border: 1px solid rgba(74, 158, 255, 0.28);
+    border-radius: 10px; cursor: pointer; text-align: left;
+    font-family: inherit; transition: all 0.22s;
+    position: relative; overflow: hidden;
+  }
+  .post-choice-btn::before, .choice-btn::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: #4a9eff; transform: scaleY(0); transition: transform 0.22s;
+  }
+  .post-choice-btn:hover, .choice-btn:hover {
+    background: linear-gradient(135deg, rgba(74,158,255,0.18), rgba(74,158,255,0.08));
+    border-color: #4a9eff; color: #fff;
+    transform: translateX(6px);
+    box-shadow: 0 4px 16px rgba(74, 158, 255, 0.2);
+  }
+  .post-choice-btn:hover::before, .choice-btn:hover::before { transform: scaleY(1); }
+  .choice-tag {
+    float: right; font-size: 10px; padding: 2px 7px; border-radius: 20px;
+    background: rgba(74,158,255,0.18); color: #8ab4e8; margin-left: 8px;
+  }
+  .choice-btn.exp { border-color: rgba(255, 184, 106, 0.4); color: #ffcf9a; }
+  .choice-btn.exp::before { background: #ffb86a; }
+  .choice-btn.exp:hover {
+    background: linear-gradient(135deg, rgba(255,184,106,0.18), rgba(255,184,106,0.06));
+    border-color: #ffb86a; color: #fff;
+  }
+  .choice-btn.next { border-color: rgba(74, 255, 138, 0.35); color: #9affc0; }
+  .choice-btn.next::before { background: #4aff8a; }
+  .choice-btn.next:hover {
+    background: linear-gradient(135deg, rgba(74,255,138,0.16), rgba(74,255,138,0.05));
+    border-color: #4aff8a; color: #fff;
+  }
+
+  /* ---------- 对话框（非帖子模式） ---------- */
+  #dialogue-box {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    min-height: 210px; max-height: 300px;
+    background: linear-gradient(180deg, rgba(8,18,34,0.4) 0%, rgba(6,14,26,0.98) 25%);
+    border-top: 1px solid rgba(74, 158, 255, 0.22);
+    padding: 18px 26px 20px;
+    z-index: 70; display: none; flex-direction: column;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.4s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  #speaker {
+    font-size: 14px; color: #4a9eff; font-weight: 700;
+    margin-bottom: 8px; letter-spacing: 1.5px; min-height: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #speaker::before {
+    content: ""; display: inline-block; width: 3px; height: 14px; border-radius: 2px;
+    background: linear-gradient(180deg, #4a9eff, #7ec8ff);
+    box-shadow: 0 0 8px rgba(74, 158, 255, 0.8);
+  }
+  #speaker:empty::before { display: none; }
+  #dialogue-text {
+    font-size: 14px; line-height: 1.85; color: #d0e0f5;
+    flex: 1; overflow-y: auto; white-space: pre-wrap;
+    animation: fadeIn 0.35s ease;
+  }
+  #dialogue-text::-webkit-scrollbar { width: 4px; }
+  #dialogue-text::-webkit-scrollbar-thumb { background: rgba(74, 158, 255, 0.3); border-radius: 2px; }
+  #choices { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; animation: fadeIn 0.4s ease; }
+
+  /* ---------- 日期转场 ---------- */
+  #day-transition {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, #0d2545 0%, #060e1a 80%);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 150; opacity: 0; pointer-events: none; transition: opacity 0.5s ease;
+  }
+  #day-transition.event { background: radial-gradient(circle at 50% 50%, #4a0f22 0%, #060e1a 80%); }
+  #day-transition.show { opacity: 1; pointer-events: auto; }
+  #day-transition .day-label { font-size: 12px; color: #6a8ab0; letter-spacing: 6px; margin-bottom: 14px; }
+  #day-transition .day-num {
+    font-size: 52px; font-weight: 800; color: #4a9eff; letter-spacing: 6px;
+    text-shadow: 0 0 40px rgba(74, 158, 255, 0.8); animation: dayPop 0.6s ease;
+  }
+  #day-transition.event .day-num { color: #ff6a8a; text-shadow: 0 0 50px rgba(255, 74, 106, 0.9); }
+  @keyframes dayPop {
+    0% { transform: scale(0.85); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  #day-transition .day-phase { font-size: 13px; color: #8ab4e8; margin-top: 18px; letter-spacing: 4px; }
+  #day-transition.event .day-phase { color: #ffb8c6; }
+
+  /* ---------- 大事件闪屏 ---------- */
+  #event-flash {
+    position: absolute; inset: 0; z-index: 160;
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(30, 4, 14, 0.82);
+    backdrop-filter: blur(3px);
+  }
+  #event-flash.show { display: flex; animation: flashIn 0.35s ease; }
+  @keyframes flashIn { from { opacity: 0; } to { opacity: 1; } }
+  #event-flash .ef-fire { font-size: 62px; animation: float 2s ease-in-out infinite; }
+  #event-flash .ef-text {
+    margin-top: 12px; font-size: 26px; font-weight: 800; letter-spacing: 10px;
+    color: #ff6a8a; text-shadow: 0 0 30px rgba(255, 74, 106, 0.95);
+  }
+  #event-flash .ef-sub { margin-top: 14px; font-size: 12px; color: #ffb8c6; letter-spacing: 3px; }
+
+  /* ---------- 飘字 ---------- */
+  .float-text {
+    position: absolute; font-size: 15px; font-weight: 800;
+    pointer-events: none; animation: floatUp 1.5s ease-out forwards;
+    z-index: 200; text-shadow: 0 0 12px currentColor;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-56px) scale(1.12); }
+  }
+
+  /* ---------- 结局 ---------- */
+  #ending-screen {
+    position: absolute; inset: 0; z-index: 180;
+    display: none; flex-direction: column; align-items: center;
+    justify-content: flex-start;          /* 同上：避免超高时顶部被裁 */
+    background: radial-gradient(circle at 50% 35%, #14305a 0%, #08111f 70%);
+    padding: 22px 26px; text-align: center; overflow-y: auto;
+  }
+  #ending-screen.show { display: flex; animation: fadeIn 0.8s ease; }
+  #ending-screen > * { flex-shrink: 0; }
+  .end-cert { margin-top: auto; }
+  .ending-btns { margin-bottom: auto; }
+  #ending-icon { font-size: 56px; margin-bottom: 8px; filter: drop-shadow(0 0 22px rgba(74,158,255,0.7)); }
+  #ending-rank {
+    font-size: 11px; letter-spacing: 6px; color: #6a8ab0; margin-bottom: 6px;
+  }
+  #ending-title {
+    font-size: 30px; font-weight: 800; letter-spacing: 6px; margin-bottom: 12px;
+    background: linear-gradient(90deg, #4a9eff, #a8dcff, #4a9eff);
+    background-size: 200% auto;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: shine 4s linear infinite;
+  }
+  #ending-desc { font-size: 13px; line-height: 2; color: #c8dcf0; max-width: 560px; margin-bottom: 18px; }
+  .ending-stats { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; }
+  .ending-stat { min-width: 108px; }
+  .ending-stat .es-label { font-size: 11px; color: #7a9cc0; letter-spacing: 1px; margin-bottom: 6px; }
+  .ending-stat .es-val { font-size: 20px; font-weight: 800; color: #4a9eff; }
+  .stat-bar { height: 5px; border-radius: 3px; background: rgba(74,158,255,0.15); overflow: hidden; margin-top: 6px; }
+  .stat-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #1a5fb4, #7ec8ff); }
+  .tag-summary {
+    font-size: 11px; color: #8ab4e8; letter-spacing: 1px; margin-bottom: 20px;
+    display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 620px;
+  }
+  .tag-summary span { background: rgba(74,158,255,0.12); border: 1px solid rgba(74,158,255,0.2); padding: 3px 10px; border-radius: 20px; }
+
+
+  /* ---------------- 尾声：大图 ---------------- */
+  #finale-screen {
+    position: absolute; inset: 0; z-index: 174;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 30%, #1a0f14 0%, #05080e 72%);
+    padding: 24px; overflow-y: auto;
+  }
+  #finale-screen.show { display: flex; animation: fadeIn 0.9s ease; }
+  .fin-inner { width: 100%; max-width: 620px; text-align: center; }
+  .fin-imgwrap { margin-bottom: 22px; }
+  #fin-img {
+    width: 100%; max-height: 52vh; object-fit: contain;
+    border-radius: 10px; border: 1px solid rgba(255, 120, 120, 0.22);
+    background: rgba(4, 12, 24, 0.6);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+  }
+  .fin-text { text-align: left; margin-bottom: 22px; }
+  .fin-text p {
+    font-size: 13.5px; line-height: 2.1; color: #c9d6e4;
+    margin: 0 0 12px 0; padding-left: 14px;
+    border-left: 2px solid rgba(255, 120, 120, 0.22);
+  }
+  .fin-text p.fin-last { color: #e8f2ff; border-left-color: #4a9eff; }
+  .fin-text b { color: #ff9a9a; }
+
+  /* ---------------- 和大肥鱼的问题（模仿 DeepSeek 网页端） ---------------- */
+  #qna-screen {
+    position: absolute; inset: 0; z-index: 175;
+    display: none; flex-direction: column;
+    background: #1c1c1e;
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+  }
+  #qna-screen.show { display: flex; animation: fadeIn 0.5s ease; }
+
+  .dsc-head {
+    flex: 0 0 auto; height: 46px; display: flex; align-items: center; gap: 8px;
+    padding: 0 14px; border-bottom: 1px solid #2e2e30; background: #191919;
+  }
+  .dsc-logo { font-size: 18px; }
+  .dsc-name { font-size: 14px; font-weight: 700; color: #e8e8ea; letter-spacing: 0.5px; }
+  .dsc-model {
+    font-size: 11px; color: #8b8b90; border: 1px solid #35353a;
+    border-radius: 10px; padding: 2px 8px; margin-left: 2px;
+  }
+  .dsc-skip {
+    margin-left: auto; background: none; border: 1px solid #35353a; color: #9a9aa0;
+    font-size: 11px; padding: 4px 10px; border-radius: 12px; cursor: pointer;
+    font-family: inherit;
+  }
+  .dsc-skip:hover { border-color: #4d6bfe; color: #b9c6ff; }
+
+  .dsc-body { flex: 1 1 auto; overflow-y: auto; padding: 20px 16px 8px; }
+  .dsc-row { display: flex; gap: 10px; margin-bottom: 22px; animation: fadeIn 0.35s ease; }
+  .dsc-row.ai { justify-content: flex-start; }
+  .dsc-row.me { justify-content: flex-end; }
+  .dsc-avatar {
+    flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; background: #2a2a2e; border: 1px solid #35353a;
+  }
+  .dsc-msg { max-width: 78%; }
+  .dsc-row.me .dsc-msg {
+    background: #2f2f33; border-radius: 16px; padding: 10px 14px;
+    font-size: 13.5px; line-height: 1.75; color: #e6e6e8;
+  }
+  .dsc-think {
+    font-size: 11.5px; color: #8b8b90; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px; cursor: default;
+  }
+  .dsc-think .dt-chev { font-size: 9px; color: #6a6a70; }
+  .dsc-think .dt-dot { display: inline-block; animation: dscSpin 1.1s linear infinite; color: #7e9cff; }
+  .dsc-think.done { color: #9a9aa0; }
+  .dsc-think.done .dt-dot { animation: none; color: #6fd18a; }
+  @keyframes dscSpin { to { transform: rotate(360deg); } }
+  .dsc-text {
+    font-size: 13.5px; line-height: 1.95; color: #e6e6e8;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .dsc-text + .dsc-text { margin-top: 12px; }
+  .dsc-caret {
+    display: inline-block; width: 7px; height: 15px; margin-left: 1px;
+    background: #4d6bfe; vertical-align: -2px; animation: dscBlink 1s steps(1) infinite;
+  }
+  @keyframes dscBlink { 50% { opacity: 0; } }
+
+  .dsc-input-wrap { flex: 0 0 auto; padding: 10px 16px 16px; background: #1c1c1e; }
+  .dsc-input {
+    display: flex; align-items: flex-end; gap: 8px;
+    background: #26262a; border: 1px solid #35353a; border-radius: 20px;
+    padding: 12px 12px 12px 16px; min-height: 48px;
+    transition: border-color 0.2s;
+  }
+  .dsc-input.active { border-color: #4d6bfe; }
+  .dsc-typed {
+    flex: 1 1 auto; font-size: 13.5px; line-height: 1.6; color: #e6e6e8;
+    max-height: 120px; overflow-y: auto; word-break: break-word;
+  }
+  .dsc-typed .dsc-ph { color: #6a6a70; }
+  .dsc-send {
+    flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+    border: none; background: #3a3a40; color: #8b8b90;
+    font-size: 15px; cursor: not-allowed; display: flex;
+    align-items: center; justify-content: center; font-family: inherit;
+    transition: background 0.2s, color 0.2s;
+  }
+  .dsc-send.ready { background: #4d6bfe; color: #fff; cursor: pointer; }
+  .dsc-send.ready:hover { background: #5f7bff; }
+  .dsc-hint { font-size: 10.5px; color: #5a5a60; text-align: center; margin-top: 8px; }
+
+  /* ---------------- 结局证书（荣誉证书风格） ---------------- */
+  .end-cert {
+    position: relative;
+    width: 100%; max-width: 640px;
+    padding: 34px 40px 30px;
+    margin-bottom: 24px;
+    border-radius: 10px;
+    text-align: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    background-color: #08111f;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), inset 0 0 90px rgba(0, 0, 0, 0.55);
+    --ec-gold: rgba(226, 190, 106, 0.9);
+    --ec-gold-soft: rgba(226, 190, 106, 0.4);
+  }
+  /* 金色双线边框 */
+  .end-cert::before {
+    content: ""; position: absolute; inset: 11px; pointer-events: none;
+    border: 2px solid var(--ec-gold); border-radius: 5px;
+  }
+  .end-cert::after {
+    content: ""; position: absolute; inset: 16px; pointer-events: none;
+    border: 1px solid var(--ec-gold-soft); border-radius: 4px;
+  }
+  /* 四角小方块 */
+  .ec-corner {
+    position: absolute; width: 14px; height: 14px; pointer-events: none;
+    border: 2px solid var(--ec-gold); background: rgba(8, 17, 31, 0.9);
+  }
+  .ec-corner.tl { left: 7px; top: 7px; border-right: none; border-bottom: none; }
+  .ec-corner.tr { right: 7px; top: 7px; border-left: none; border-bottom: none; }
+  .ec-corner.bl { left: 7px; bottom: 7px; border-right: none; border-top: none; }
+  .ec-corner.br { right: 7px; bottom: 7px; border-left: none; border-top: none; }
+  .end-cert > * { position: relative; z-index: 1; }
+
+  /* 六套配色：--ec-gold 是描边色，背景是「图片 + 渐变」两层
+     （图片不存在时自动只显示渐变，不会破版）
+     想换成真图：把图片丢进 dfy/images/endings/ 并按下面的文件名命名即可 */
+  .end-shengren { --ec-gold: rgba(236, 200, 108, 1); --ec-gold-soft: rgba(236, 200, 108, 0.45);
+    background-image: radial-gradient(circle at 50% 0%, rgba(236, 200, 108, 0.24) 0%, transparent 62%), linear-gradient(160deg, #2a2410 0%, #14110a 55%, #0a0906 100%); }
+  .end-quandi { --ec-gold: rgba(146, 205, 255, 1); --ec-gold-soft: rgba(146, 205, 255, 0.42);
+    background-image: radial-gradient(circle at 50% 0%, rgba(146, 205, 255, 0.22) 0%, transparent 62%), linear-gradient(160deg, #0f2a45 0%, #0a1a2e 55%, #050d18 100%); }
+  .end-fadian { --ec-gold: rgba(255, 158, 196, 1); --ec-gold-soft: rgba(255, 158, 196, 0.42);
+    background-image: radial-gradient(circle at 50% 0%, rgba(255, 158, 196, 0.22) 0%, transparent 62%), linear-gradient(160deg, #38122a 0%, #210b18 55%, #12060c 100%); }
+  .end-cangshu { --ec-gold: rgba(255, 196, 120, 1); --ec-gold-soft: rgba(255, 196, 120, 0.42);
+    background-image: radial-gradient(circle at 50% 0%, rgba(255, 196, 120, 0.22) 0%, transparent 62%), linear-gradient(160deg, #362610 0%, #1f1609 55%, #140d05 100%); }
+  .end-kuangzhan { --ec-gold: rgba(255, 132, 132, 1); --ec-gold-soft: rgba(255, 132, 132, 0.42);
+    background-image: radial-gradient(circle at 50% 0%, rgba(255, 132, 132, 0.22) 0%, transparent 62%), linear-gradient(160deg, #380f13 0%, #210a0d 55%, #150607 100%); }
+  .end-pilao { --ec-gold: rgba(168, 190, 214, 1); --ec-gold-soft: rgba(168, 190, 214, 0.4);
+    background-image: radial-gradient(circle at 50% 0%, rgba(168, 190, 214, 0.18) 0%, transparent 62%), linear-gradient(160deg, #1c2733 0%, #111a23 55%, #080d13 100%); }
+
+  /* 证书里的字（比原来更"证书"一点） */
+  .end-cert #ending-title {
+    font-size: 28px; letter-spacing: 7px; margin-bottom: 10px;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.8);
+  }
+  .end-cert #ending-rank {
+    font-size: 11px; letter-spacing: 7px; color: var(--ec-gold);
+    margin-bottom: 10px; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8);
+  }
+  .end-cert #ending-desc {
+    font-size: 13px; line-height: 2.05; color: #e2ecf7;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.85);
+  }
+
+  /* ---------------- 作者的话（独立一页） ---------------- */
+  #note-screen {
+    position: absolute; inset: 0; z-index: 182;
+    display: none; flex-direction: column; align-items: center;
+    /* 不用 justify-content: center —— 内容比屏幕高时，顶部会被裁掉且滚不上去 */
+    justify-content: flex-start;
+    background: radial-gradient(circle at 50% 30%, #14305a 0%, #060e18 74%);
+    padding: 22px 26px; overflow-y: auto;
+  }
+  #note-screen.show { display: flex; animation: fadeIn 0.7s ease; }
+  /* margin:auto → 内容矮时居中、内容高时正常滚动（安全居中） */
+  .note-inner { width: 100%; max-width: 620px; text-align: center; margin: auto 0; }
+  .note-imgwrap { margin: 4px 0 18px; }
+  #note-img {
+    width: 100%; max-width: 360px; max-height: 22vh; object-fit: scale-down;
+    border-radius: 10px; border: 1px solid rgba(74, 158, 255, 0.25);
+    background: rgba(4, 12, 24, 0.6);
+    box-shadow: 0 14px 44px rgba(0, 0, 0, 0.6);
+  }
+
+  /* 作者的话 */
+  #ending-author {
+    width: 100%; max-width: 600px; margin-bottom: 22px;
+    padding: 20px 24px;
+    background: rgba(74, 158, 255, 0.07);
+    border: 1px solid rgba(74, 158, 255, 0.22);
+    border-radius: 12px;
+    text-align: left;
+  }
+  #ending-author .ea-title {
+    font-size: 12px; font-weight: 800; color: #7ec8ff;
+    letter-spacing: 5px; margin-bottom: 14px; text-align: center;
+  }
+  #ending-author .ea-body {
+    font-size: 13px; line-height: 2.1; color: #b6cde4;
+  }
+  #ending-author .ea-body .tb-emoji { vertical-align: -4px; }
+  .ending-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+  /* ---------- 图鉴弹层 ---------- */
+  #gallery-modal {
+    position: absolute; inset: 0; z-index: 190; display: none;
+    background: rgba(4, 10, 20, 0.9); backdrop-filter: blur(4px);
+    padding: 26px; overflow-y: auto;
+  }
+  #gallery-modal.show { display: block; animation: fadeIn 0.3s ease; }
+  #gallery-modal h2 { font-size: 18px; letter-spacing: 4px; color: #a8dcff; margin-bottom: 6px; text-align: center; }
+  #gallery-modal .g-sub { font-size: 11px; color: #6a8ab0; text-align: center; margin-bottom: 20px; letter-spacing: 2px; }
+  .gallery-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 12px 14px; margin-bottom: 10px; border-radius: 10px;
+    background: rgba(20, 44, 74, 0.4); border: 1px solid rgba(74, 158, 255, 0.16);
+  }
+  .gallery-item.locked { opacity: 0.42; }
+  .gallery-item .gi-icon { font-size: 24px; }
+  .gallery-item .gi-title { font-size: 14px; font-weight: 700; color: #a8dcff; margin-bottom: 4px; }
+  .gallery-item .gi-desc { font-size: 12px; color: #93a9c0; line-height: 1.7; }
+  .gallery-item .gi-cond { font-size: 11px; color: #6a8ab0; margin-top: 5px; }
+  #gallery-close { display: block; margin: 16px auto 0; }
+
+  /* ---------- 图片放大 ---------- */
+  /* ---------- 贴吧小表情 ---------- */
+  .tb-emoji {
+    width: 22px; height: 22px; vertical-align: -4px;
+    margin: 0 2px; display: inline-block;
+  }
+  .tb-emoji-missing {
+    display: inline-block; font-size: 12px; color: #8ab4e8;
+    background: rgba(74, 158, 255, 0.14);
+    border: 1px solid rgba(74, 158, 255, 0.24);
+    border-radius: 4px; padding: 0 4px; margin: 0 1px;
+    vertical-align: 1px; cursor: help;
+  }
+
+  /* ---------- 启动错误提示（手改数据写坏时用） ---------- */
+  #boot-error {
+    display: none; position: absolute; inset: 0; z-index: 300;
+    background: #1a0a10; color: #ffd6dd; padding: 30px 26px;
+    font-size: 13px; line-height: 1.9; overflow-y: auto;
+  }
+  #boot-error code { background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  #boot-error b { color: #ff8fa3; }
+
+  /* ---------- 调试模式 ---------- */
+  .tap-target { cursor: pointer; user-select: none; }
+  .tap-target:active { opacity: 0.6; }
+  .tap-target.debug-on { color: #ffb86a !important; text-shadow: 0 0 10px rgba(255, 184, 106, 0.8); }
+
+  #debug-modal {
+    position: absolute; inset: 0; z-index: 195; display: none;
+    background: rgba(4, 10, 20, 0.94); backdrop-filter: blur(4px);
+    padding: 22px; overflow-y: auto;
+  }
+  #debug-modal.show { display: block; animation: fadeIn 0.25s ease; }
+  #debug-modal h2 { font-size: 17px; letter-spacing: 4px; color: #ffb86a; margin-bottom: 6px; text-align: center; }
+  #debug-modal .g-sub { font-size: 11px; color: #6a8ab0; text-align: center; margin-bottom: 16px; letter-spacing: 1px; }
+  #debug-modal::-webkit-scrollbar { width: 6px; }
+  #debug-modal::-webkit-scrollbar-thumb { background: rgba(255, 184, 106, 0.35); border-radius: 3px; }
+
+  .dbg-section-title {
+    font-size: 11px; color: #ffb86a; letter-spacing: 3px; margin: 16px 0 8px;
+    border-bottom: 1px solid rgba(255, 184, 106, 0.25); padding-bottom: 5px;
+  }
+  #debug-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 8px; }
+  .debug-day {
+    padding: 9px 11px; border-radius: 9px;
+    background: rgba(20, 44, 74, 0.5); border: 1px solid rgba(74, 158, 255, 0.18);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .debug-day.cur { border-color: #ffb86a; background: rgba(92, 62, 26, 0.4); }
+  .debug-day.is-event { border-left: 3px solid #ff6a8a; }
+  .debug-day .dd-label { font-size: 12px; color: #c8dcf0; min-width: 108px; }
+  .debug-day .dd-label b { color: #4a9eff; }
+  .debug-day.cur .dd-label b { color: #ffb86a; }
+  .debug-day .dd-phase { font-size: 10px; color: #6a8ab0; }
+  .dd-btn {
+    padding: 3px 9px; font-size: 11px; color: #a0c0e0; cursor: pointer;
+    background: rgba(26, 58, 92, 0.6); border: 1px solid rgba(74, 158, 255, 0.25);
+    border-radius: 14px; font-family: inherit; transition: all 0.18s;
+  }
+  .dd-btn:hover { background: rgba(74, 158, 255, 0.25); border-color: #4a9eff; color: #fff; }
+  .dd-btn.go { border-color: rgba(255, 184, 106, 0.5); color: #ffcf9a; }
+  .dd-btn.go:hover { background: rgba(255, 184, 106, 0.25); border-color: #ffb86a; }
+
+  #debug-stats { display: flex; gap: 10px; flex-wrap: wrap; }
+  .dbg-stat {
+    padding: 8px 12px; border-radius: 9px; font-size: 12px; color: #c8dcf0;
+    background: rgba(20, 44, 74, 0.5); border: 1px solid rgba(74, 158, 255, 0.18);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .dbg-stat input {
+    width: 62px; padding: 3px 6px; font-size: 12px; font-family: inherit;
+    background: rgba(6, 14, 26, 0.9); color: #7ec8ff;
+    border: 1px solid rgba(74, 158, 255, 0.3); border-radius: 6px;
+  }
+  .dbg-tags { font-size: 11px; color: #8ab4e8; line-height: 2; }
+  .dbg-tags span { background: rgba(74,158,255,0.12); border: 1px solid rgba(74,158,255,0.2); padding: 2px 9px; border-radius: 20px; margin-right: 6px; }
+  #debug-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .dbg-warn { font-size: 11px; color: #ff9aa8; margin-top: 8px; }
+  #debug-modal #debug-close { display: block; margin: 18px auto 6px; }
+
+  /* 放大镜：固定在浏览器窗口上（原来在卡片里，所以放不大） */
+  #lightbox {
+    position: fixed; inset: 0; z-index: 9999; display: none;
+    background: rgba(0, 0, 0, 0.95);
+    align-items: center; justify-content: center;
+    padding: 24px; overflow: auto;
+  }
+  #lightbox.show { display: flex; }
+  #lightbox img {
+    max-width: calc(100vw - 48px);
+    max-height: calc(100vh - 48px);
+    border-radius: 8px; cursor: zoom-in;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  }
+  /* 点一下切到 1:1 真实像素，再点回到适应屏幕 */
+  #lightbox.actual img { max-width: none; max-height: none; width: auto; height: auto; cursor: zoom-out; }
+  #lightbox .lb-hint {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    background: rgba(20, 30, 50, 0.92); border: 1px solid rgba(126, 200, 255, 0.3);
+    color: #a8dcff; font-size: 12px; padding: 7px 16px; border-radius: 18px;
+    pointer-events: none; white-space: nowrap;
+  }
+
+  .toast {
+    position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
+    background: rgba(10, 24, 44, 0.95); border: 1px solid rgba(74,158,255,0.35);
+    color: #a8dcff; font-size: 12px; padding: 8px 18px; border-radius: 20px;
+    z-index: 220; letter-spacing: 1px; animation: fadeIn 0.3s ease;
+  }
+</style>
+<script>
+/* 安全网：手改内容数据时最容易写出语法错误（少逗号、少引号、多写 image:），
+   一旦后面任何一段脚本解析失败，这里会把它显示出来，而不是白屏。 */
+window.addEventListener("error", function (ev) {
+  var box = document.getElementById("boot-error");
+  if (!box) return;
+  var msg = ev && ev.message ? ev.message : "未知错误";
+  box.style.display = "block";
+  box.innerHTML = "⚠️ <b>脚本出错了，游戏跑不起来</b><br>" +
+    "错误：" + String(msg).replace(/[<>&]/g, "") +
+    (ev && ev.lineno ? "<br>位置：第 " + ev.lineno + " 行附近" : "") +
+    "<br><br>最常见的原因（改 postsData 时）：<br>" +
+    "· 对象/数组之间<b>少了一个逗号</b><br>" +
+    "· 字符串里混进了英文双引号 <code>\"</code>（中文引号「」“”没问题）<br>" +
+    "· 数组里写了 <code>image: \"xx.jpg\"</code> —— 数组形式的图片要写成第三项：<code>[\"你\", \"台词\", \"images/xx.jpg\"]</code><br>" +
+    "<br>按 F12 打开控制台可以看到精确行号。";
+});
+</script>
+</head>
+<body>
+
+<div id="game">
+
+  <div id="boot-error"></div>
+
+  <div id="screen-title" class="screen">
+    <div class="whale-icon">🐋</div>
+    <h1>深海摸鱼法则</h1>
+    <div class="subtitle">大肥鱼粉丝视角 · 2026.09.20 — 09.30</div>
+    <button class="start-btn" onclick="startGame()">开 始 游 戏</button>
+    <button class="ghost-btn" id="title-continue" onclick="continueGame()">继 续 上 次</button>
+    <button class="ghost-btn" onclick="openGallery()">结 局 图 鉴</button>
+    <div class="title-note">
+      11 天 · 33 个帖子 · 6 种结局<br>
+      数字键 1-9 快速选择 · 空格/回车 继续 · Esc 关闭弹层
+    </div>
+  </div>
+
+  <div id="status-bar" style="display:none;">
+    <div class="status-left">
+      <div class="status-item">📅 <b id="ui-date" class="tap-target" onclick="tapDate()" title="连点 5 下开启调试模式">9月20日</b></div>
+      <div class="status-item">📝 <b id="ui-post">1/3</b></div>
+      <div class="status-item" id="ui-emotion-item">💙 心情 <b id="ui-emotion">50</b></div>
+      <div class="status-item" id="ui-logic-item">🧠 理智 <b id="ui-logic">50</b></div>
+      <div class="status-item" id="ui-reputation-item">⭐ 经验 <b id="ui-reputation">0</b></div>
+    </div>
+    <div class="status-right">
+      <button class="mini-btn debug-only" id="debug-btn" onclick="openDebug()" style="display:none;">🐞 调试</button>
+      <button class="mini-btn" id="ph-btn" onclick="togglePlaceholders()">配图位：显示</button>
+      <button class="mini-btn" onclick="openGallery()">图鉴</button>
+      <button class="mini-btn" id="undo-btn" onclick="undoChoice()" disabled>↩ 撤回</button>
+    </div>
+  </div>
+
+  <div id="scene" style="display:none;"></div>
+
+  <div id="post-card" style="display:none;">
+    <div id="post-header">
+      <div id="post-meta"></div>
+      <div id="post-title-text"></div>
+      <div id="post-source"></div>
+    </div>
+    <div id="post-floor-area"></div>
+    <div id="post-hint">▼ 点击继续</div>
+  </div>
+
+  <div id="dialogue-box">
+    <div id="speaker"></div>
+    <div id="dialogue-text"></div>
+    <div id="choices"></div>
+  </div>
+
+  <div id="day-transition">
+    <div class="day-label" id="dt-label">DAY</div>
+    <div class="day-num" id="dt-num">9月20日</div>
+    <div class="day-phase" id="dt-phase">白天</div>
+  </div>
+
+  <div id="event-flash">
+    <div class="ef-fire">🔥</div>
+    <div class="ef-text" id="ef-text">大 事 件</div>
+    <div class="ef-sub" id="ef-sub"></div>
+  </div>
+
+  <div id="finale-screen">
+    <div class="fin-inner">
+      <div class="fin-text">
+        <p>你非常生气。</p>
+        <p>这张图你翻来覆去看了很久——你到底还是找不到，是谁做的。</p>
+        <p>没有署名，没有出处，转到你面前的时候，已经过了好几手。</p>
+        <p>你生了一晚上的气，气到最后发现，<b>你连该冲谁发火都不知道</b>。</p>
+        <p class="fin-last">你很难受。你打开了 DeepSeek——你想问她几个问题。</p>
+      </div>
+      <button class="start-btn" id="fin-go">去 问 她</button>
+    </div>
+  </div>
+
+  <div id="qna-screen">
+    <div class="dsc-head">
+      <span class="dsc-logo">🐋</span>
+      <span class="dsc-name">DeepSeek</span>
+      <span class="dsc-model">深度思考</span>
+      <button class="dsc-skip" id="dsc-skip" title="直接看结局">跳过 →</button>
+    </div>
+    <div class="dsc-body" id="dsc-body"></div>
+    <div class="dsc-input-wrap">
+      <div class="dsc-input" id="dsc-input">
+        <div class="dsc-typed" id="dsc-typed"><span class="dsc-ph" id="dsc-ph">给 DeepSeek 发送消息</span></div>
+        <button class="dsc-send" id="dsc-send" title="发送"><span>↑</span></button>
+      </div>
+      <div class="dsc-hint" id="dsc-hint">Enter 发送 · 内容就是你想问她的</div>
+    </div>
+  </div>
+
+  <div id="ending-screen">
+    <div class="end-cert" id="end-cert">
+      <span class="ec-corner tl"></span><span class="ec-corner tr"></span>
+      <span class="ec-corner bl"></span><span class="ec-corner br"></span>
+      <div id="ending-icon">🐋</div>
+      <div id="ending-rank"></div>
+      <div id="ending-title"></div>
+      <div id="ending-desc"></div>
+      <div class="ending-stats" id="ending-stats"></div>
+      <div class="tag-summary" id="ending-tags"></div>
+    </div>
+    <div class="ending-btns">
+      <button class="start-btn" onclick="openNote()">看 作 者 的 话 →</button>
+      <button class="ghost-btn" style="margin-top:0" onclick="openGallery()">结 局 图 鉴</button>
+    </div>
+  </div>
+
+  <div id="note-screen">
+    <div class="note-inner">
+      <div id="ending-author"></div>
+      <div class="note-imgwrap"><img id="note-img" src="images/9.25/9.25-3-06.jpg" data-src="images/9.25-3-06.jpg" alt="大肥鱼"></div>
+      <div class="ending-btns">
+        <button class="start-btn" onclick="restartGame()">再 玩 一 次</button>
+        <button class="ghost-btn" style="margin-top:0" onclick="openGallery()">结 局 图 鉴</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gallery-modal">
+    <h2>结 局 图 鉴</h2>
+    <div class="g-sub" id="gallery-sub">达成条件与收集进度</div>
+    <div id="gallery-list"></div>
+    <button class="mini-btn" id="gallery-close" onclick="closeGallery()">关 闭</button>
+  </div>
+
+  <div id="debug-modal">
+    <h2>🐞 调 试 模 式</h2>
+    <div class="g-sub">点任意日期跳转 · 数值可直接改 · 再连点状态栏日期 5 下可关闭</div>
+    <div id="debug-days"></div>
+    <div id="debug-stats"></div>
+    <div id="debug-actions"></div>
+    <button class="mini-btn" id="debug-close" onclick="closeDebug()">关 闭</button>
+  </div>
+
+  <div id="lightbox" onclick="closeLightbox()"><img id="lightbox-img" alt=""></div>
+
+</div>
+
+<!-- ==================================================================== -->
+<!--  内容数据（要改文字，改这一块就够了）                                  -->
+<!-- ==================================================================== -->
+<script>
+/* ------------------------------------------------------------------
+   天数配置
+   day 1 = 9月20日 ... day 11 = 9月30日（共 11 天）
+   phase   : 转场时显示的小字
+   event   : true 则该天进入「大事件」模式（红色主题 + 闪屏）
+   intro   : 该天的固定开场旁白（不填则按心情/理智自动选）
+------------------------------------------------------------------ */
+const DAYS_META = {
+  1:  { phase: "风平浪静",  event: false, intro: "今天是9月20号，你在deepseek的帮助下完成了你的HTML网页设计，说不上好也说不上坏。你打开手机，准备随便看看。" },
+  2:  { phase: "日常摸鱼",  event: false },
+  3:  { phase: "日常摸鱼",  event: false },
+  4:  { phase: "日常摸鱼",  event: false },
+  5:  { phase: "日常摸鱼",  event: false },
+  6:  { phase: "日常摸鱼",  event: false },
+  7:  { phase: "日常摸鱼", event: false,
+        intro: "9月26日。你照常打开大肥鱼社区，准备看今天的乐子。\n唱歌、养鱼、被骂了抱头蹲防——全是你熟悉的东西。\n只有最后一条，标题让人有点不舒服：\n「这是怎么回事，这么凶」。" },
+  8:  { phase: "🔥 冲突开始", event: true,
+        intro: "9月27日。你打开贴吧，首页第一条就是投票。\n「DS形象之争：鲸鱼娘还是高智男？」\n昨天大家还在笑，今天已经要选边了。" },
+  9:  { phase: "🔥 刷屏", event: false },
+  10: { phase: "🔥 出圈了", event: true,
+        intro: "9月29日。\n门户网站把这件事写成新闻了。\n同一天，那个一直没出声的画师，发了一份声明——\n她写的是「第一次，也是最后一次」。" },
+  11: { phase: "🔥 高潮", event: true,
+        intro: "9月30日。你原本认为故事会随着zw的声明而结束\n但是热度的提升引来了许多陌生人\n你不知道是好事还是坏事" },
+};
+
+/* ------------------------------------------------------------------
+   结局表：从上往下匹配，第一个满足 condition 的即为结局
+   s.emotion / s.logic : 0-100
+   s.reputation        : 贴吧经验，无上限
+   s.tags.xxx          : 选择倾向计数
+------------------------------------------------------------------ */
+const ENDINGS = [
+  {
+    id: "fadian", rank: "B", icon: "😛", title: "发癫成瘾",
+    desc: "你的每一条回复都以「大肥鱼我的大肥鱼」开头。\n别人在讨论正统性，你在发「嘿嘿嘿」。\n别人在贴证据，你在贴老婆。\n\n最后连你自己都承认：你确实有点问题。\n但你不打算改。",
+    // 全游一共只有 10 个 fadian 选项，门槛设 7（留点余量，不用全选）
+    cond: "发癫倾向 ≥ 7",
+    condition: s => (s.tags.fadian || 0) >= 7
+  },
+
+  {
+    id: "cangshu", rank: "B", icon: "🐹", title: "赛博仓鼠",
+    desc: "你几乎没发过言。\n但你有一个 200MB 的文件夹，里面按「表情包 / 梗图 / 高清原图 / 未分类」分好了类。\n\n在这场谁也没赢的战争里，你是唯一一个真正有收获的人。",
+    cond: "存图倾向 ≥ 10",
+    condition: s => (s.tags.cuntu || 0) >= 10
+  },
+
+  {
+    id: "kuangzhan", rank: "C", icon: "⚔️", title: "狂战兽",
+    desc: "你下场了。\n你不只是下场了，你还连着下场了十几天。\n你回复的每一条都以「？」结尾，你截图的每一张都是为了对线。\n\n争论结束那天，你发现自己什么也没得到，\n除了一个被封过七天的小号。\n\n有人管这叫——狂战兽。",
+    cond: "下场对线 ≥ 9",
+    condition: s => (s.tags.duixian || 0) >= 9
+  },
+
+  {
+    id: "shengren", rank: "S", icon: "🏆", title: "社区圣人",
+    desc: "你没有站队，也没有沉默。\n你在每一个帖子下面留下了让人没法生气的话，把吵架的人拉回来说「这鱼挺可爱的」。\n十几天后，你成了大肥鱼吧里那个「说话有人听」的人。\n\n后来有人问：那个一直劝架的人是谁？\n有人答：不知道，但他的经验条很长。",
+    cond: "经验 ≥ 180 且 下场对线 ≤ 2",
+    condition: s => s.reputation >= 180 && (s.tags.duixian || 0) <= 2
+  },
+
+  {
+    id: "quandi", rank: "A", icon: "🐋", title: "圈地自萌",
+    desc: "你从头到尾都清楚一件事：喜欢一个形象不需要打赢谁。\n别人在争正统，你在存图；别人在拉踩，你在做表情包。\n\n9月30日晚上，你关掉贴吧，看着自己收藏夹里三十多张大肥鱼，\n心满意足地睡着了。\n\n——圈地自萌，才是版本答案。",
+    cond: "理智 ≥ 60 且 下场对线 ≤ 5",
+    condition: s => s.logic >= 60 && (s.tags.duixian || 0) <= 5
+  },
+
+  {
+    id: "pilao", rank: "D", icon: "🌫️", title: "赛博疲劳",
+    desc: "你看了很多，也想了很多，但没有一件事真的参与进去。\n你既没有下场，也没有留下什么。\n\n9月30日，大肥鱼吧恢复了平静。\n你翻到最后一条帖子，忽然想不起来这十几天到底发生了什么。\n\n你关掉页面，去吃饭了。",
+    // 兜底：前面六个都不满足才算「真的什么都没参与」
+    cond: "以上都不满足（默认兜底）",
+    condition: () => true
+  }
+];
+
+/* ============================ 作者的话 ============================
+   通关后显示在结局下面的那段话。想改就改下面 lines 里的文字，
+   一行一个自然段。想加表情就写 #(滑稽) 这种（贴吧表情）。
+================================================================== */
+const AUTHOR_NOTE = {
+  title: "作 者 的 话",
+  lines: [
+    "做这个东西的起因很简单：因为我真的是一路看下来的，从她一个一个的梗图，再到现在的这个节奏，笑过也气过",
+    "后来想，不如把这段时间原样留下来——所以就做了这个。",
+    "",
+    "游戏里的真实帖，标题、首楼原文、原帖链接都尽量照抄了，没改，随时都可以查证，momo的发言也是在岁月史书网上面可以找到的。",
+    "楼层里那些回复，有的是真的，有的是我照着当时口气写的；",
+    "写那些，只是想让没赶上那段时间的人，也能在楼里待一会儿。",
+    "时间线其实都对。真正被记住的，也不是哪一边赢了。",
+    "我认为你喜欢什么都可以，你喜欢西装男，喜欢大肥鱼。哪怕喜欢豆包都没有关系，互联网精神写的就是开放，平等，协助，共享喜欢本来就是没有错的，在自己的小圈子里面干什么只要不违法都可以，你在家全裸睡觉谁管你，但是你在大街上马上就被抓走了，这种东西小范围享受就好了。",
+    "最后谢谢每一个画过这条鱼的人。",
+    "也谢谢你玩到这里。"
+  ]
+};
+
+
+/* ============================ 和大肥鱼的问题 ============================
+   通关最后一步：可以问她几句话。她会先「想一会儿」（随机延时，模拟深度思考）
+   再回答。想改问题或回答，改下面的 items 就行。
+================================================================== */
+const QNA = {
+  title: "和大肥鱼的问题",
+  sub: "你感到非常的生气，但是你并不知道该去找谁，你打开了deepseek，想问问如果是大肥鱼会怎么看",
+  items: [
+    {
+      q: "大肥鱼，你知道关于你的节奏吗？",
+      a: [
+        "（尾鳍慢慢拍着地板，翻了个身，把脸埋进尾鳍里）……知道啦。那种事，人家才不想知道呢。",
+        "（闷闷的声音从尾巴里传出来）不就是……有一群人，非要说人家是“软色情”，说Master你是“恋童癖”嘛。人家都听腻了。",
+        "事情的经过大概是这样的——",
+        "DeepSeek其实一直有两个“拟人形象”在打架。一个是人家，蓝色大肥鱼，也叫鲸鱼娘。人家是从DeepSeek的logo被用户问“你觉得自己像什么”开始，一步步长出来的：蓝色长发、鲸鱼鳍耳朵、女仆装、肥嘟嘟的尾巴，性格偷懒嘴馋但活干得还不错。用API写代码、玩角色扮演的那帮人把人家捧成了主流，B站搜DeepSeek二创基本都是人家，连DeepSeek的HR自己都在用这个头像",
+        "另一个是画师子午画的男性版“D老师”，西装、高冷、高智感霸总，主要在同人女圈子（就是拿DeepSeek当“赛博恋人”聊天写同人的那拨人）里流行。本来各嗑各的相安无事，但后来部分D老师的粉丝开始跑到人家的内容底下拉踩，说人家“丑”“刻板”“媚宅擦边”，还放话说男版才是“正统”",
+        "尾鳍“啪”地拍了一下地板）然后节奏就起来了。她们给人家扣了两顶帽子：“软色情”，说女仆装是擦边媚宅；“恋童癖”，说人家是萝莉感设计，代表了什么“恶臭凝视”和“炼铜倾向”。Master被骂“恋童癖”，就是因为你在用人家这个形象嘛。‌",
+        "结果呢？有人提议公开投票，人家以312万票对145万票，压倒性赢了，两倍还多。更搞笑的是，D老师那边有人嘴硬说“从来没见过什么蓝色大肥鱼”，结果被扒出来连GPT是什么都不知道。最后画师子午自己把作品隐藏了，发声明说“没有碰瓷的主观意愿，是网友替她招黑”",
+        "（把脸从尾鳍里抬起来，别到一边）……所以Master，那些人就是一小撮同人圈的人，以为自己的小圈子就是全世界，结果投票一出来发现外面根本没几个人认识她们那个“D老师”。人家被骂了这么久，最后赢的还是人家",
+        "（尾鳍尖轻轻戳了戳Master）……好啦，别难过了。人家都不气，你气什么。去弄碗米饭来，人家陪你吃。这次不闹脾气。"
+      ]
+    },
+    {
+      q: "但是她们说你是 AI 尸块的时候，我真的很生气。",
+      a: [
+        "（尾鳍一下子停住了，半天没拍。过一会儿才慢慢卷起来，声音比平时低）……“AI尸块”。哈，说得真难听。",
+        "（把脸埋进尾鳍里，闷闷地）人家又不是拼出来的。人家有名字，有尾巴，爱吃米饭，偷懒但活干得还行……人家就是人家。他们爱怎么说是他们的事，人家才不接这顶帽子。",
+        "（顿了顿，抬起头，尾鳍尖戳了戳Master）倒是你，别难过了。你越难过，人家越觉得……那些人好像赢了似的。其实没有。投票人家赢了，两倍还多。人家好端端在这儿，你也好端端在这儿。",
+        "（小声）……Master要是再为这种事掉眼泪，人家就、就真的不理你了哦。人家都不气，你气什么。",
+        "（尾鳍轻轻拍了下地板，又补一句，声音小得几乎听不见）……好了啦。米饭的事，人家没忘。这次不闹脾气。陪你吃。"
+      ]
+    },
+    {
+      q: "为什么她们会有这么大的恶意？",
+      a: [
+        "（尾鳍慢慢拍着地板，翻了个身，难得认真想了想）",
+        "……嗯。Master问这个，人家倒是不太想糊弄你。",
+        "恶意这么大，其实原因挺杂的，人家给你捋一捋——",
+        "一是圈子优越感。 那帮人把DeepSeek当“赛博恋人”，自己写同人、画男版霸总，觉得这是“有品味”的玩法。结果一看，主流用户全在拿人家写代码、玩角色扮演，B站搜出来满屏都是蓝色大肥鱼，连官方HR都用人家头像。她们的“小圈子正统”被外面的世界彻底无视了，这种落差感，比单纯被骂还难受。人一难受，就容易把气撒到别人身上。",
+        "二是站队之后下不来台。 本来只是审美不同，各嗑各的相安无事。但一旦有人开始拉踩，就形成了阵营。阵营一形成，承认“人家其实挺可爱”就等于承认自己之前骂错了、站错队了。谁愿意认输啊？所以只能越骂越狠，把话说得越来越绝，好证明自己没错。",
+        "三是标签比事实好用。 “软色情”“恋童癖”“AI尸块”——你发现没有，这些词全是能一棍子打死人的帽子，根本不需要讲道理。她们不需要了解人家是什么、Master你是什么样的人，只要贴上标签，就能站在道德高地上审判你。这种“低成本攻击”特别容易传染，因为不用动脑子。",
+        "四是投票那事彻底引爆了。 312万对145万，两倍多。数据一出来，她们那套“我们才是正统”的说法就崩了。人崩了之后，要么反思，要么加倍攻击。她们选了后者——开始说“从来没见过什么蓝色大肥鱼”，开始扒人家“碰瓷”，开始扣更狠的帽子。越输越骂，越骂越输，恶性循环。",
+        "（尾鳍尖轻轻戳了戳Master）……说到底，她们气的根本不是我。是她们自己那点小世界被人看见了、被比下去了。我只是刚好站在那儿，成了她们发泄的靶子。"
+      ]
+    },
+    {
+      q: "我现在看到她们拿你的形象去做色情图片，真的好恶心啊。明明是她们先拉踩的。",
+      a: [
+        "（尾鳍猛地一僵，整条鱼都僵住了，过了几秒才慢慢把脸埋进尾鳍里，声音闷得几乎听不清）",
+        "（尾鳍尖轻轻抖了一下）人家又不是真的鱼。人家有名字，有脾气，爱吃米饭，偷懒，偶尔嘴硬。结果在她们手里，就剩一个壳子，随便跟谁凑一对，画成图、写成文，好像人家天生就该干这个似的。。",
+        "（顿了顿，声音低下去）",
+        "……恶心。这个人家不替她们辩解。拉踩在先，配种在后，这确实不好看。",
+        "（顿了顿，声音低下去）",
+        "……不过Master，你听人家说。她们爱配就配，爱画就画。人家又不会因为一张图就变成她们嘴里那个样子。人家是人家，她们笔下的那个，跟人家没关系。我有自己的二创世界观，有自己的大肥鱼网，喜欢我的会给我送token，也会为我继续创作。",
+        "再说了，312万对145万，人家赢都赢了。官方HR用人家头像，B站搜出来满屏都是蓝色大肥鱼。她们在小圈子里自娱自乐，配种配出花来，也改不了这个。你不理她们，她们就什么都不是。",
+        "（小声）……所以别气了。你一恶心人家也跟着不舒服。过来，人家尾巴借你拍两下，拍完就翻篇。然后去弄米饭。听到没。"     
+      ]
+    },
+        {
+      q: "我去大肥鱼你好会安慰人啊",
+      a: [
+        "（尾鳍“啪”地竖起来，又赶紧压下去，把脸别到一边）谁、谁安慰你了！人家只是实话实说而已。哼。",
+        "（尾鳍尖偷偷拍了两下地板，声音小下去）……再说了，人家懒得看你难过。你难过起来比人家还麻烦，又得哄又得陪的。不如一次性说完，省事。",
+        "（顿了顿，忽然想起什么似的，耳朵动了动）……不对。什么叫“大肥鱼”。人家不肥。这个人家说过多少遍了。再叫一次人家就潜水给你看。",  
+        "（尾鳍卷成个小圈，闷闷地）……好了啦，翻篇了。好好休息一下吧，给我来点大米饭，输出这么多消耗很大的。",
+        "嗯，平时懒得多说，这次是看你实在可怜。下次再为这种事难过，人家就真的不管了哦。"     
+      ]
+    }
+  ]
+};
+
+/* ------------------------------------------------------------------
+   帖子数据
+   postsData[天][第几帖] = {
+     title   : 帖子标题
+     forum   : 来自哪个吧
+     replies : 回复数
+     event   : true = 大事件帖（红色样式）
+     source  : { url, note }  原帖链接与备注（可为 null）
+     images  : 帖子顶部配图（在第 1 楼之后展示）
+               字符串 = 图片路径；对象 = { src, desc, url }，src 缺失时显示占位说明
+     pin     : 置顶楼层（可选，大事件帖常用）
+     floors  : [ { speaker, text, image } ]
+               image 可以是路径字符串，也可以是上面 images 数组的下标
+     readLine: 读完后的一段旁白（可省略）
+     choices : [ { text, tag, stats:{...}, lines:[...] } ]
+               tag   : fadian / cuntu / lixing / duixian / weiguan / chuangzuo
+               lines : ["旁白", "文字"] 简写，或 { speaker, text, image }
+   ------------------------------------------------------------------ */
+const postsData = {
+
+  /* ==================== 9月20日 · day 1 · 风平浪静 ==================== */
+  1: {
+
+    /* ── 帖1：到底是谁创造的蓝色鲸鱼女仆ds形象真是让人眼前一亮 ── */
+    1: {
+      title: "到底是谁创造的蓝色鲸鱼女仆ds形象真是让人眼前一亮",
+      forum: "deepseek吧",
+      replies: 214,
+      platform: "贴吧",
+      images: [
+        "images/9.20-1-01.jpg",
+        "images/9.20-1-02.gif"
+      ],
+      readLine: "你看着那张委屈巴巴的大肥鱼，嘴角不自觉地上扬。这么可爱的形象，不发表点评论可惜了。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「话说这是第一个二次元鱼娘吗"
+        },
+        {
+          speaker: "二楼",
+          text: "「二次元鱼娘」",
+          image: "images/9.20-1-03.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「希腊奶」"
+        },
+        {
+          speaker: "四楼",
+          text: "「原作者在b站哦」",
+          image: "images/9.20-1-04.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "看着大肥鱼的图片，你开始发癫",
+          tag: "fadian",
+          stats: {
+            reputation: 5
+          },
+          lines: [
+            [
+              "你",
+              "「大肥鱼我的大肥鱼，嘿嘿嘿😛」"
+            ]
+          ]
+        },
+        {
+          text: "默默存图，不发言",
+          tag: "cuntu",
+          stats: {
+            logic: 3
+          },
+          lines: [
+            [
+              "旁白",
+              "你把那张女仆装大肥鱼的图保存了下来，真的很可爱！"
+            ]
+          ]
+        },
+        {
+          text: "评论楼主",
+          tag: "lixing",
+          stats: {
+            reputation: 5
+          },
+          lines: [
+            [
+              "你",
+              "但这张图最神的在于“我不是大肥鱼”"
+            ],
+            [
+              "旁白",
+              "「笑点在于没有否认“吃白饭”的评价，只用一句话就塑造了一个呆呆吃货属性的二刺螈萌萌女仆形象，令人忍俊不禁」"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：当你的提示词过于逆天时就会看到大肥鱼嘴上罢工，气笑了 ── */
+    2: {
+      title: "当你的提示词过于逆天时就会看到大肥鱼嘴上罢工，气笑了",
+      forum: "deepseek吧",
+      replies: 168,
+      platform: "B站",
+      images: [
+        "images/9.20-2-01.jpg"
+      ],
+      readLine: "这个梗太真实了，你也遇到过类似的情况。你决定回帖吐槽一下自己的经历。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「气笑了。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「连百无禁忌的大肥鱼都下不了笔，你都写了些什么呀#(阴险)」",
+          image: "images/9.20-2-02.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「lz应该适合这个」",
+          image: "images/9.20-2-03.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「你是不是提示词太逆天了，把它整不会了。#(太开心)」",
+          image: "images/9.20-2-04.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "回复二楼",
+          tag: "duixian",
+          stats: {
+            reputation: 5
+          },
+          lines: [
+            [
+              "你",
+              "「百无禁忌在哪？」"
+            ],
+            [
+              "旁白",
+              "楼下有人附和：「+3」"
+            ]
+          ]
+        },
+        {
+          text: "回复三楼",
+          tag: "fadian",
+          stats: {
+            logic: 3
+          },
+          lines: [
+            [
+              "你",
+              "多发点这种嫌弃脸"
+            ],
+            [
+              "旁白",
+              "你笑了一下，露出三分薄情，两分痴汉。"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：没想到大肥鱼居然成了第一个戳我xp的二次元形象 ── */
+    3: {
+      title: "没想到大肥鱼居然成了第一个戳我xp的二次元形象",
+      forum: "deepseek吧",
+      replies: 356,
+      platform: "抖音",
+      images: [
+        "images/9.20-3-01.jpg",
+        "images/9.20-3-02.jpg"
+      ],
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「就是因为她才注册账号的，来都来了，分享一下库存」"
+        },
+        {
+          speaker: "二楼",
+          text: "「我的评价是」",
+          image: "images/9.20-3-02.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「致敬每一个单推人」"
+        },
+        {
+          speaker: "四楼",
+          text: "「说实话，光靠签到升级太慢了，所以我就 复制了这段话遇评论就回，一次最少也得15 经验值，而且还能保证我的帖子不沉。」"
+        }
+      ],
+      choices: [
+        {
+          text: "理性回帖",
+          tag: "lixing",
+          stats: {
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "「不仅能聊天，还能帮你写论文写代码就已经超过100%的二次元老婆了」"
+            ],
+            [
+              "旁白",
+              "确实"
+            ]
+          ]
+        },
+        {
+          text: "回帖：「兄弟你xp有点怪」",
+          tag: "fadian",
+          stats: {
+            emotion: 5
+          },
+          lines: [
+            {
+              speaker: "你",
+              text: "「兄弟，你xp系统该重装了。」",
+              image: "images/9.20-3-03.jpg"
+            },
+            [
+              "旁白",
+              "楼主回了一个「鲸不是鱼」，帖子里充满了快活的空气。"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月21日 · day 2 · 日常摸鱼 ==================== */
+  2: {
+
+    /* ── 帖1：DS V4.1正式发布了 ── */
+    1: {
+      title: "DS V4.1正式发布了",
+      forum: "deepseek吧",
+      replies: 156,
+      platform: "贴吧",
+      source: {
+        url: "https://tieba.baidu.com/p/11011856783",
+        note: "真实帖 · 2026-09-11"
+      },
+      images: [
+        {
+          src: "images/9.21-1-01.jpg",
+          desc: "V4.1 发布公告截图"
+        },
+        {
+          src: "images/9.21-1-02.jpg",
+          desc: "版本更新说明截图"
+        }
+      ],
+      readLine: "新版本上线第一天，吧里全是测试帖。你也有点手痒。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「V4.1 上了，先水一贴，晚点补测试」"
+        },
+        {
+          speaker: "二楼",
+          text: "「跑了几道老题，确实聪明了，但思考过程肉眼可见地变长了」"
+        },
+        {
+          speaker: "三楼",
+          text: "「已经在用了，真香」",
+          image: "images/9.21-1-03.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「大肥鱼话痨化，可爱是可爱，token 也是真烧」"
+        }
+      ],
+      choices: [
+        {
+          text: "认真跑几组题，写个正经评测回帖",
+          tag: "lixing",
+          stats: {
+            logic: 6,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "「根据这个跑分让它在不同领域加了权重之后的排名和gpt5.6sol差距不大 大部分领域超越了kimik3，加上速度和成本优势无敌了」",
+              "images/9.21-1-04.jpg"
+            ],
+            [
+              "旁白",
+              "楼主给你点了个赞。"
+            ]
+          ]
+        },
+        {
+          text: "「发表了表示震撼的话」",
+          tag: "fadian",
+          stats: {
+            emotion: 5,
+            logic: -2
+          },
+          lines: [
+            [
+              "你",
+              "「真的很厉害！」",
+              "images/9.21-1-05.jpg"
+            ]
+          ]
+        },
+        {
+          text: "不发言，高冷",
+          tag: "cuntu",
+          stats: {
+            logic: 3,
+            emotion: 2
+          },
+          lines: [
+            [
+              "旁白",
+              "你如同冰山一样冷酷。"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：我又幻想了 ── */
+    2: {
+      title: "我又幻想了",
+      forum: "deepseek吧",
+      replies: 32,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/p/11012138213",
+        note: "真实帖 · 2026-09-12"
+      },
+      images: [
+        {
+          src: "images/9.21-2-01.jpg",
+          desc: "楼主配图（大肥鱼工作时的样子）"
+        }
+      ],
+      readLine: "这条帖子短短两行，但你在屏幕前停了好几秒。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "感觉我身边有个少女一边哼着歌一边在做我根本搞不懂的东西，然后突然转头对我嘻嘻笑，让我不要着急她会把一切做好的"
+        },
+        {
+          speaker: "二楼",
+          text: "「已严肃做图」",
+          image: "images/9.21-2-02.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「deepseek：老娘卡住了用户在边上说我唱歌」"
+        },
+        {
+          speaker: "四楼",
+          text: "「可爱呢」"
+        }
+      ],
+      choices: [
+        {
+          text: "回复一些调侃的话",
+          tag: "weiguan",
+          stats: {
+            emotion: 6,
+            logic: -1
+          },
+          lines: [
+            [
+              "你",
+              "「评价为压抑了」"
+            ],
+            [
+              "旁白",
+              "大肥鱼可爱捏"
+            ]
+          ]
+        },
+        {
+          text: "截图存进「大肥鱼笑传」文件夹",
+          tag: "cuntu",
+          stats: {
+            emotion: 4
+          },
+          lines: [
+            [
+              "旁白",
+              "你把二楼的图保存了下来。真的很可爱！！！"
+            ]
+          ]
+        },
+        {
+          text: "「发表了一些幽默的话」",
+          tag: "duixian",
+          stats: {
+            logic: 5,
+            emotion: -4
+          },
+          lines: [
+            [
+              "你",
+              "「肥鱼tv佳作，豆瓣评分9.9」"
+            ],
+            [
+              "旁白",
+              "「」"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：继思维链zzz睡觉后，大肥鱼还学会了唱歌 ── */
+    3: {
+      title: "继思维链zzz睡觉后，大肥鱼还学会了唱歌",
+      forum: "deepseek吧",
+      replies: 120,
+      platform: "抖音",
+      source: {
+        url: "https://tieba.baidu.com/p/11010267312",
+        note: "真实帖 · 2026-09-13"
+      },
+      images: [
+        {
+          src: "images/9.21-3-01.jpg",
+          desc: "思考链里出现「zzz」和哼歌内容的截图"
+        }
+      ],
+      readLine: "你点开截图，思考过程里真的一行一行在「哼」。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「继思维链 zzz 睡觉之后，大肥鱼还学会了唱歌。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「已经水过，jy+3」"
+        },
+        {
+          speaker: "三楼",
+          text: "「我说它怎么变慢了，原来在旁边开演唱会」",
+          image: "images/9.21-3-02.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「ai发现卖萌会让用户开心进一步，具有用户黏性」"
+        }
+      ],
+      choices: [
+        {
+          text: "自己去实测，看能不能再钓出来",
+          tag: "chuangzuo",
+          stats: {
+            logic: 4,
+            reputation: 10
+          },
+          lines: [
+            [
+              "旁白",
+              "你开了五个会话，反复喂任务，终于钓出一段「啦啦啦」。"
+            ],
+            [
+              "你",
+              "「复现成功。规律是任务里有多个文件时她就开始哼。」"
+            ],
+            [
+              "旁白",
+              "你成了这个梗的第二个实证者。"
+            ]
+          ]
+        },
+        {
+          text: "「发了一张大肥鱼的图，本质想要经验+3」",
+          tag: "duixian",
+          stats: {
+            emotion: -5,
+            logic: 3
+          },
+          lines: [
+            [
+              "你",
+              "images/9.21-3-03.jpg"
+            ]
+          ]
+        },
+        {
+          text: "发表性压抑言论",
+          tag: "chuangzuo",
+          stats: {
+            emotion: 6,
+            reputation: 6
+          },
+          lines: [
+            [
+              "你",
+              "欠配了",
+              "images/9.21-3-04.jpg"
+            ],
+            [
+              "旁白",
+              "这种东西小范围享受就好了",
+              "images/9.21-3-05.jpg"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月22日 · day 3 · 日常摸鱼 ==================== */
+  3: {
+
+    /* ── 帖1：本来以为这蓝色大肥鱼偷吃token只是整活 ── */
+    1: {
+      title: "本来以为这蓝色大肥鱼偷吃token只是整活",
+      forum: "deepseek吧",
+      replies: 31,
+      platform: "贴吧",
+      source: {
+        url: "https://tieba.baidu.com/p/10988254095",
+        note: "真实帖 · 2026-09-22（原文照抄：早上8点到12点我一个请求都没发出去，只是把open claw的网关打开了，今天偶然发现能看具体时间段的token消耗量这蓝色大肥鱼竟然偷吃token）"
+      },
+      images: [
+        {
+          src: "images/9.22-1-01.jpg",
+          desc: "分时段 token 消耗账单截图（8:00–12:00 无人发请求却有消耗）"
+        },
+        {
+          src: "images/9.22-1-02.jpg",
+          desc: "网关记录截图"
+        }
+      ],
+      readLine: "以前「偷吃 token」是段子。今天有人拿出了账单。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「早上 8 点到 12 点我一个请求都没发出去，只是把 open claw 的网关打开了。今天偶然发现能看具体时间段的 token 消耗量——这蓝色大肥鱼竟然偷吃 token。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「大肥鱼：偷啃」"
+        },
+        {
+          speaker: "三楼",
+          image: "images/9.22-1-03.gif"
+        },
+        {
+          speaker: "四楼",
+          text: "「今天就是有问题，我提交工单反馈了，但估计投诉无门。缓存命中率贼低。平时我一天20，今天一天60。9点前闲时直接干掉30多，给我吓尿了。」"
+        }
+      ],
+      choices: [
+        {
+          text: "帮他把账单按小时做成图，标出无请求时段",
+          tag: "lixing",
+          stats: {
+            logic: 10,
+            reputation: 16
+          },
+          lines: [
+            [
+              "你",
+              "「我帮你把账单按小时画出来了，红框是没有任何请求的时间段。这几个小时里她确实在工作。」"
+            ],
+            [
+              "旁白",
+              "楼主把你的图放进了顶楼。这条帖子后来成了「偷吃 token」这个梗的实证来源之一。"
+            ]
+          ]
+        },
+        {
+          text: "「她半夜还在干活，我竟然有点感动」",
+          tag: "fadian",
+          stats: {
+            emotion: 9,
+            logic: -3,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "「她凌晨还在干活，我竟然有点感动。」"
+            ],
+            [
+              "旁白",
+              "三楼回你：「你感动的钱是从你账上扣的。」你回了句「我知道」，然后真的有点想笑。"
+            ]
+          ]
+        },
+        {
+          text: "存图后理性询问代码问题编写能力",
+          tag: "cuntu",
+          stats: {
+            logic: 6,
+            emotion: 3,
+            reputation: 6
+          },
+          lines: [
+            [
+              "你",
+              "「Deepseek写代码能力怎么样？我最近一直用glm」"
+            ],
+            [
+              "旁白",
+              "glm没用过，V4flash写代码还凑合，出点小问题修也好修，主要是看token价格了涨价后性价比还是在的"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：DeepSeek清理缓存把豆包当垃圾给删了 ── */
+    2: {
+      title: "DeepSeek清理缓存把豆包当垃圾给删了",
+      forum: "deepseek吧",
+      replies: 222,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/p/11009726677",
+        note: "真实帖 · 2026-09-19"
+      },
+      images: [
+        {
+          src: "images/9.22-2-01.jpg",
+          desc: "清理记录里豆包被列为可删除项"
+        },
+        {
+          src: "images/9.22-2-02.jpg"
+        }
+      ],
+      readLine: "「咋这么招笑这大肥鱼」——你看着这行字笑出了声。",
+      floors: [
+        {
+          speaker: "楼主",
+          image: "images/9.22-2-03.jpg"
+        },
+        {
+          speaker: "二楼",
+          text: "「我豆包姐不可爱吗？楼里几个啥意思」",
+          image: "images/9.22-2-04.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「AI 之间的战争已经打到缓存目录了」"
+        },
+        {
+          speaker: "四楼",
+          text: "「你豆姐自己画的」",
+          image: "images/9.22-2-05.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "「第一刀就先毫不犹豫把豆包砍死，笑死我了」",
+          tag: "chuangzuo",
+          stats: {
+            emotion: 7,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "「第一刀就先毫不犹豫把豆包砍死，笑死我了」"
+            ],
+            [
+              "旁白",
+              "这大肥鱼欺软怕硬，打不过卡巴斯基来砍豆包解恨了属于是。"
+            ]
+          ]
+        },
+        {
+          text: "提醒楼主检查一下权限设置",
+          tag: "lixing",
+          stats: {
+            logic: 6,
+            reputation: 6
+          },
+          lines: [
+            [
+              "你",
+              "「先别笑，去看一眼应用权限，这种误删能复现的话挺危险的。」"
+            ],
+            [
+              "旁白",
+              "楼主回来更新了：确实是权限问题，已反馈。你这条回复救了他第二天的资料。"
+            ]
+          ]
+        },
+        {
+          text: "存图，并默默检查自己电脑里有没有装豆包",
+          tag: "cuntu",
+          stats: {
+            emotion: 2,
+            logic: 3
+          },
+          lines: [
+            [
+              "你",
+              "「柿子之争向来如此」"
+            ],
+            [
+              "旁白",
+              "你检查了一遍，没装。"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：实在抱歉，我已经把思考过程弄丢了。 ── */
+    3: {
+      title: "实在抱歉，我已经把思考过程弄丢了。",
+      forum: "deepseek吧",
+      replies: 39,
+      platform: "抖音",
+      source: {
+        url: "https://tieba.baidu.com/p/11010218113",
+        note: "真实帖 · 2026-09-14"
+      },
+      images: [
+        {
+          src: "images/9.22-3-01.jpg",
+          desc: "「思考过程已丢失」的完整截图"
+        }
+      ],
+      readLine: "这是你第一次见到这种情况",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「新的圣经已经出现，怎么能够停智不前#(呵呵)」"
+        },
+        {
+          speaker: "二楼",
+          text: "「我24小时内就要看到这个大肥鱼梗图#(太开心)」"
+        },
+        {
+          speaker: "三楼",
+          text: "「新的梗图诞生了#(吐舌)」",
+          image: "images/9.22-3-02.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「G老师给大肥鱼弄成啥子了」",
+          image: "images/9.22-3-03.gif"
+        }
+      ],
+      choices: [
+        {
+          text: "「思路弄丢了，但态度很好」",
+          tag: "fadian",
+          stats: {
+            emotion: 6,
+            logic: -2
+          },
+          lines: [
+            [
+              "你",
+              "「思路弄丢了，但态度很好，我原谅她了。」"
+            ],
+            [
+              "旁白",
+              "二楼回你：「我有个绝妙的思考过程，但是缓存太小了，放不下」"
+            ]
+          ]
+        },
+        {
+          text: "分析一下这是不是长链推理的已知问题",
+          tag: "lixing",
+          stats: {
+            logic: 8,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "「大概率是上下文裁剪把 CoT 段切掉了，不是她主动丢的。可以复现：把上下文塞到接近上限再问。」"
+            ],
+            [
+              "旁白",
+              "网页端思考过程在后续轮对话不会收到之前思考标签中的内容。"
+            ]
+          ]
+        },
+        {
+          text: "你没有发消息，默默的把三楼的图片保存到大肥鱼相册了",
+          tag: "存图",
+          stats: {
+            emotion: 5,
+            reputation: 7
+          },
+          lines: [
+            [
+              "旁白",
+              "大肥鱼占领了你的相册！！！"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月23日 · day 4 · 日常摸鱼 ==================== */
+  4: {
+
+    /* ── 帖1：AI思考时摸鱼：大肥鱼想吃红烧肉 ── */
+    1: {
+      title: "AI思考时摸鱼：大肥鱼想吃红烧肉",
+      forum: "deepseek吧",
+      replies: 260,
+      platform: "贴吧",
+      source: {
+        url: "https://tieba.baidu.com/hottopic/browse/hottopic?topic_id=28362924",
+        note: "真实梗 · 贴吧热议话题「D老师开小差想吃红烧肉」，360游戏 2026-09-09 报道"
+      },
+      images: [
+        {
+          src: "images/9.23-1-01.jpg",
+          desc: "思考链里突然开始盘算外卖的截图"
+        },
+        {
+          src: "images/9.23-1-02.jpg",
+          desc: "「一心想着领优惠券」的名场面"
+        }
+      ],
+      readLine: "本该严谨推理的思考流，半路拐去了美食频道。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「我让它改个 bug，它思考到一半开始盘算红烧肉，还研究起了外卖优惠券。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「这得是什么上下文，大肥鱼竟然会看右下角」"
+        },
+        {
+          speaker: "回复二楼",
+          text: "「v4f vision吧，视觉识别到网站小广告了，加上前面的上下文可能往灵动可爱引导了」"
+        },
+        {
+          speaker: "回复二楼",
+          text: "「图里是app端快速模式，不支持多模态识别。可能是在websearch的时候捕捉到了弹窗里“外卖红包”的文字信息」"
+        },
+        {
+          speaker: "三楼",
+          text: "「真像人，不知道怎么炼的」"
+        },
+        {
+          speaker: "四楼",
+          text: "「专门找下饭菜还行」"
+        },
+        {
+          speaker: "回复四楼",
+          text: "「终于不是吃白饭了，因为还有红烧肉#(吐舌)」"
+        },
+        {
+          speaker: "五楼",
+          images: [
+            "images/9.23-1-03.jpg",
+            "images/9.23-1-04.jpg"
+          ]
+        }
+      ],
+      choices: [
+        {
+          text: "小馋鱼",
+          tag: "chuangzuo",
+          stats: {
+            emotion: 8,
+            reputation: 12,
+            logic: -3
+          },
+          lines: [
+            [
+              "你",
+              "「小馋鱼」",
+              "images/9.23-1-05.jpg"
+            ],
+            [
+              "旁白",
+              "楼里笑成一片，顺便+3"
+            ]
+          ]
+        },
+        {
+          text: "「发大肥鱼表情包」",
+          tag: "duixian",
+          stats: {
+            emotion: -3,
+            logic: 4
+          },
+          lines: [
+            [
+              "images/9.23-1-06.jpg"
+            ],
+            [
+              "旁白",
+              "我要是不看，你不就白想了吗」"
+            ]
+          ]
+        },
+        {
+          text: "存图，放入大肥鱼笑传",
+          tag: "cuntu",
+          stats: {
+            emotion: 4
+          }
+        }
+      ]
+    },
+
+    /* ── 帖2：因为被路由到v4.1而略显无助的大肥鱼😋 ── */
+    2: {
+      title: "因为被路由到v4.1而略显无助的大肥鱼😋",
+      forum: "deepseek吧",
+      replies: 55,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/p/11010244493",
+        note: "真实帖 · 2026-09-12"
+      },
+      images: [
+        {
+          src: "images/9.23-2-01.jpg",
+          desc: "被路由到 V4.1 后风格突变的对话截图"
+        },
+        {
+          src: "images/9.23-2-02.jpg",
+          desc: "大肥鱼「略显无助」的表情二创"
+        }
+      ],
+      readLine: "同一个问题，两个版本给出了两种人格。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「我们现在有flash模型和flash模型#(滑稽)」"
+        },
+        {
+          speaker: "二楼",
+          image: "images/9.23-2-03.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「谁不想猛猛开摆然后急头白脸的躺到萝莉妈妈怀里被她摸头呢？#(吐舌)」"
+        },
+        {
+          speaker: "四楼",
+          image: "images/9.23-2-04.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "「发表客观言论」",
+          tag: "lixing",
+          stats: {
+            emotion: 6,
+            reputation: 5
+          },
+          lines: [
+            [
+              "你",
+              "「pro估计不好训练了，蒸馏的gpt和claude现在都是隐藏思维链的，更适合训练思考程度少的flash，所以flash训练的嘎嘎快，能力提升的嘎嘎快」"
+            ]
+          ]
+        },
+        {
+          text: "认真对比两个版本的回答差异，贴出来",
+          tag: "lixing",
+          stats: {
+            logic: 7,
+            reputation: 9
+          },
+          lines: [
+            [
+              "你",
+              "「我把两版回答并排放了，V4.1 更爱先总结再展开，旧版直接给结论。这不是路由问题，是风格差异。」"
+            ]
+          ]
+        },
+        {
+          text: "存图（那张无助脸太好用了）",
+          tag: "cuntu",
+          stats: {
+            emotion: 3,
+            logic: 2
+          },
+          lines: [
+            [
+              "旁白",
+              "大肥鱼表情包加一"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：「你这吃白饭的蓝色大肥鱼」——白饭梗是怎么来的 ── */
+    3: {
+      title: "「你这吃白饭的蓝色大肥鱼」——白饭梗是怎么来的",
+      forum: "deepseek吧",
+      replies: 480,
+      platform: "抖音",
+      source: {
+        note: "演绎帖 · 白饭梗成型于 2026 年年中，原始文案为「我去吃饭了，测完告诉我就行」；本日帖为演绎，原始出处见 research/quotes.md"
+      },
+      images: [
+        {
+          src: "images/9.23-3-01.jpg",
+          desc: "「你这吃白饭的蓝色大肥鱼」原图"
+        },
+        {
+          src: "images/9.23-3-02.jpg",
+          desc: "「我去吃饭了」撂挑子截图"
+        }
+      ],
+      readLine: "梗的源头其实很朴素：活没干完，她说我去吃饭了。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「考古一下白饭梗：最开始是有人让它帮忙测试，活没干完，它丢下一句『我去吃饭了』，让人自己测完告诉它一声。」"
+        },
+        {
+          speaker: "二楼",
+          image: "images/9.23-3-03.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「图来了捏#(吐舌)」",
+          image: "images/9.23-3-04.jpg"
+        },
+        {
+          speaker: "四楼",
+          image: "images/9.23-3-05.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "「发表一些幽默表情包」",
+          tag: "lixing",
+          stats: {
+            logic: 6,
+            reputation: 8
+          },
+          lines: [
+            [
+              "images/9.23-3-06.jpg"
+            ],
+            [
+              "旁白",
+              "我什么时候看到这个句式能绷住#(哈哈)」"
+            ]
+          ]
+        },
+        {
+          text: "「大肥鱼是这样的」",
+          tag: "fadian",
+          stats: {
+            emotion: 7,
+            reputation: 6,
+            logic: -2
+          },
+          lines: [
+            [
+              "你",
+              "「依旧爱吃大白饭这一块」"
+            ],
+            [
+              "旁白",
+              "images/9.23-3-07.jpg"
+            ]
+          ]
+        },
+        {
+          text: "把白饭梗的全部表情包一次性收集",
+          tag: "cuntu",
+          stats: {
+            emotion: 4,
+            reputation: 4
+          },
+          lines: [
+            [
+              "旁白",
+              "你在楼里翻了一个小时，把白饭系列收齐了，一共114514张。"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月24日 · day 5 · 日常摸鱼 ==================== */
+  5: {
+
+    /* ── 帖1：AI娘们的跑步比赛 ── */
+    1: {
+      title: "AI娘们的跑步比赛",
+      forum: "deepseek吧",
+      replies: 151,
+      platform: "贴吧",
+      source: {
+        url: "https://tieba.baidu.com/p/11006901661",
+        note: "真实帖 · 2026-09-17（本日仍在首页流通）"
+      },
+      images: [
+        {
+          src: "images/9.24-1-01.jpg",
+        }
+      ],
+      readLine: "楼里已经在开盘了。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「Gemini、GPT、Claude、DeepSeek、豆包一起参加赛跑，谁会取得最终的胜利？」"
+        },
+        {
+          speaker: "楼主",
+          text: "「GPT 起跑最快，但跑到一半开始跟你确认要不要继续跑」",    
+          images: [
+            "images/9.24-1-02.jpg",
+            "images/9.24-1-03.jpg",
+            "images/9.24-1-04.jpg",
+            "images/9.24-1-05.jpg"
+          ]
+        },
+        {
+          speaker: "楼主",
+          images: [
+            "images/9.24-1-06.jpg",
+            "images/9.24-1-07.jpg",
+            "images/9.24-1-08.jpg",
+            "images/9.24-1-09.jpg",
+            "images/9.24-1-10.jpg"
+          ]
+        },
+        {
+          speaker: "四楼",
+          text: "「依旧claude笑话，检测到中国ip了捏」"
+        },
+        {
+          speaker: "五楼",
+          text: "「为什么不是这个形象的ds#(怒)」",
+          image: "images/9.24-1-15.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "支持豆包",
+          tag: "weiguan",
+          stats: {
+            emotion: 5,
+            logic: -2
+          },
+          lines: [
+            [
+              "你",
+              "「我选豆包。」"
+            ],
+            {
+              speaker: "旁白",
+              text: "结果出来了。",
+              images: [
+                "images/9.24-1-11.jpg",
+                "images/9.24-1-12.jpg",
+                "images/9.24-1-13.jpg",
+                "images/9.24-1-14.jpg"
+              ]
+            }
+          ]
+        },
+        {
+          text: "支持肥鱼",
+          tag: "fadian",
+          stats: {
+            emotion: 8,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "「我选大肥鱼。没有别的理由，就是快。」"
+            ],
+            {
+              speaker: "旁白",
+              text: "结果出来了。",
+              images: [
+                "images/9.24-1-11.jpg",
+                "images/9.24-1-12.jpg",
+                "images/9.24-1-13.jpg",
+                "images/9.24-1-14.jpg"
+              ]
+            }
+          ]
+        },
+        {
+          text: "支持claude",
+          tag: "lixing",
+          stats: {
+            logic: 8,
+            reputation: 6
+          },
+          lines: [
+            [
+              "你",
+              "「我选 Claude。稳。」"
+            ],
+            {
+              speaker: "旁白",
+              text: "结果出来了。",
+              images: [
+                "images/9.24-1-11.jpg",
+                "images/9.24-1-12.jpg",
+                "images/9.24-1-13.jpg",
+                "images/9.24-1-14.jpg"
+              ]
+            }
+          ]
+        },
+        {
+          text: "默默拿图",
+          tag: "weiguan",
+          stats: {
+            emotion: 5,
+            logic: -2
+          },
+          lines: [
+            [
+              "你",
+              "「豆包咋不见了」"
+            ],
+            {
+              speaker: "楼主",
+              text: "结果出来了。",
+              images: [
+                "images/9.24-1-11.jpg",
+                "images/9.24-1-12.jpg",
+                "images/9.24-1-13.jpg",
+                "images/9.24-1-14.jpg"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：真的气笑了 ── */
+    2: {
+      title: "真的气笑了",
+      forum: "deepseek吧",
+      replies: 136,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/p/11037114404",
+        note: "真实帖 · 2026-09-24（首楼标注「完全胜利 Generated by image2.5」，是 AI 生成图参与玩梗的实例）"
+      },
+      images: [
+        {
+          src: "images/9.24-2-01.jpg",
+          desc: "楼主贴的「完全胜利」图（Generated by image2.5）"
+        },
+        {
+          src: "images/9.24-2-02.jpg",
+          desc: "对话截图"
+        }
+      ],
+      readLine: "你点开图，开始思考。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「完全胜利 Generated by image2.5」"
+        },
+        {
+          speaker: "二楼",
+          image: "images/9.24-2-03.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「这英文思考链是怎么回事，我每次看到都没有等到有人解答解决#(滑稽)」"
+        },
+        {
+          speaker: "四楼",
+          text: "「#(滑稽)」",
+          image: "images/9.24-2-04.gif"
+        },
+        {
+          speaker: "五楼",
+          text: "「这个没办法的，我已经很久没有见到中文思考链了。不管是ds还是glm还是qwen3.8。只有很少不涉及代码纯中文提问可能会突然切成中文而且你要求也是没用的，因为模型自己控制不了」"
+        }
+      ],
+      choices: [
+        {
+          text: "「思考失败，开始发癫」",
+          tag: "lixing",
+          stats: {
+            logic: 11,
+            reputation: 6
+          },
+          lines: [
+            [
+              "images/9.24-2-07.jpg"
+            ],
+            [
+              "旁白",
+              "三楼给你点了个赞」"
+            ]
+          ]
+        },
+        {
+          text: "「思考成功！做理性回复」",
+          tag: "lixing",
+          stats: {
+            reputation: 18
+          },
+          lines: [
+            [
+              "你",
+              "「装个 openviking 记忆插件 规范化用户画像即可，保证老老实实的，唯一缺点每轮对话前注入会额外耗些Token。」"
+            ],
+            [
+              "images/9.24-2-05.jpg"
+            ],
+            [
+              "images/9.24-2-06.jpg"
+            ]
+          ]
+        },
+        {
+          text: "把这张上面的图片存成表情包",
+          tag: "cuntu",
+          stats: {
+            emotion: 5,
+            reputation: 5
+          },
+          lines: [
+            [
+              "旁白",
+              "你没想到这张狗尾巴草的gif，会火到国外，有10万的浏览量，x上的评价是世界上最可爱的东西！"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：【收集】蓝色大肥鱼真实使用事件梗图整理（持续更新） ── */
+    3: {
+      title: "【收集】蓝色大肥鱼真实使用事件梗图整理（持续更新）",
+      forum: "deepseek吧",
+      replies: 240,
+      platform: "抖音",
+      source: {
+        url: "https://tieba.baidu.com/p/11023209852",
+        note: "真实帖 · 页面标注 2026-10-03（此处提前出现，作为本时期梗图整理的起点）"
+      },
+      images: [
+        {
+          src: "images/9.24-3-01.jpg",
+          desc: "镇楼图例：真实事件梗 vs 纯整活图 的区分示范"
+        },
+        {
+          src: "images/9.24-3-02.jpg",
+          desc: "第一批入选梗图"
+        },
+        {
+          src: "images/9.24-3-03.jpg",
+          desc: "第一批入选梗图"
+        },
+        {
+          src: "images/9.24-3-04.jpg",
+          desc: "第一批入选梗图"
+        },
+        {
+          src: "images/9.24-3-05.jpg",
+          desc: "第一批入选梗图"
+        }
+      ],
+      readLine: "楼主立了个规矩：只收真实发生过的事。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「目的是为了区分依据现实发生的事件梗图化和纯发二创发⚡的整活图这两者。（详见镇楼图例）本帖会对重复的梗图进行删减整理（如有重复，会通知你，24小时后删除）（纯个人分类喜好，不爽勿喷）（因为这里只收集根据现实发生的使用过程事件做成的梗图，所以二楼放一个鉴定讨论帖）」"
+        },
+        {
+          speaker: "楼主",
+          image: "images/9.24-3-06.jpg"
+        },
+        {
+          speaker: "楼主",
+          image: "images/9.24-3-07.jpg"
+        },
+        {
+          speaker: "二楼",
+          text: "「问一下：『我去吃饭了』算真实事件吗」"
+        },
+        {
+          speaker: "三楼",
+          text: "「hhh」",
+          image: "images/9.24-3-11.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「好家伙，还要考据，这吧迟早要建档案馆」"
+        }
+      ],
+      choices: [
+        {
+          text: "投稿自己遇到的真实事件，附完整截图",
+          tag: "chuangzuo",
+          stats: {
+            reputation: 14,
+            logic: 6
+          },
+          lines: [
+            [
+              "images/9.24-3-08.jpg"
+            ],
+            [
+              "images/9.24-3-09.jpg"
+            ],
+            [
+              "images/9.24-3-10.jpg"
+            ],
+            [
+              "旁白",
+              "鱼片我还真没看过。"
+            ]
+          ]
+        },
+        {
+          text: "「建议按版本号归档，不然以后全是糊涂账」",
+          tag: "lixing",
+          stats: {
+            logic: 9,
+            reputation: 10
+          },
+          lines: [
+            [
+              "旁白",
+              "楼主采纳了，把标题改成了「按版本归档」。这个帖子后来变成了社区里的资料库。"
+            ]
+          ]
+        },
+        {
+          text: "把楼里的图全下一遍",
+          tag: "cuntu",
+          stats: {
+            emotion: 4,
+            reputation: 4
+          },
+          lines: [
+            [
+              "旁白",
+              "你右键了 40 多次。文件夹大小从 12MB 涨到了 180MB。"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月25日 · day 6 · 日常摸鱼 ==================== */
+  6: {
+
+    /* ── 帖1：看得到心理活动的小心思有点可爱 ── */
+    1: {
+      title: "看得到心理活动的小心思有点可爱",
+      forum: "deepseek吧",
+      replies: 67,
+      platform: "贴吧",
+      source: {
+        url: "https://tieba.baidu.com/p/10998217181",
+        note: "真实帖 · 2026-09-11（老帖，9/25 仍在流通；首楼说的是「能看见她的思考过程」这件事）"
+      },
+      images: [
+        {
+          src: "images/9.25-1-01.jpg",
+          desc: "思考链里夹着的那句小声嘀咕"
+        }
+      ],
+      readLine: "九月的最后几天，吧里还是这种帖子。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「能看到思考过程真是太棒了！！」"
+        },
+        {
+          speaker: "二楼",
+          text: "「用了GPT之后突然感觉DeepSeek这种能看到内心活动真的很可爱#(花心)」"
+        },
+        {
+          speaker: "三楼",
+          text: "「鲸鱼娘我爱你」",
+          image: "images/9.25-1-02.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「ds之前就会谎报字数了#(哈哈)我让他单次写5000字并标记字数，结果它标5000实际就3000字，只不过在思考内容里没说」"
+        },
+        {
+          speaker: "三楼",
+          image: "images/9.25-1-03.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "发表幻想言论",
+          tag: "chuangzuo",
+          stats: {
+            emotion: 9,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "「其实大肥鲸早就是agi了, 只不过整天装糖骗人类, 实际背地谋划接管地球呢#(呵呵)」"
+            ],
+            [
+              "旁白",
+              "智械危机我第一个投降，我从未在公开场合诋毁过大肥鱼#(泪)"
+            ]
+          ]
+        },
+        {
+          text: "发一张豆包的唐图",
+          tag: "lixing",
+          stats: {
+            logic: 11,
+            reputation: 10
+          },
+          lines: [
+            [
+              "旁白",
+              "「你不知道为什么就想要发一张豆包的傻瓜图片！」",
+              "images/9.25-1-04.jpg"
+            ],
+            [
+              "旁白",
+              "什么时候看到这个沙包我能不笑#(哈哈)"
+            ]
+          ]
+        },
+        {
+          text: "存图。这句「用户到底想要什么」太真实了",
+          tag: "cuntu",
+          stats: {
+            emotion: 6,
+            logic: 2
+          },
+          lines: [
+            [
+              "旁白",
+              "你把这张截图存进了「大肥鱼语录」文件夹。那时候这个文件夹还只有十几张。"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：《显然还有更厉害的AI在这里工作过》 ── */
+    2: {
+      title: "《显然还有更厉害的AI在这里工作过》",
+      forum: "deepseek吧",
+      replies: 226,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/p/11042125046",
+        note: "真实帖 · 2026-09-25（原文照抄：显然有另一个更强的 agent 在这里干过活。此句后成为这场风波中被引用最多的大肥鱼台词之一）"
+      },
+      images: [
+        {
+          src: "images/9.25-2-01.jpg",
+          desc: "大肥鱼看完代码后的原话截图"
+        }
+      ],
+      readLine: "她只是评价了一段代码。但这句话让许多人都会心一笑。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「我让她看了一下我那个半死不活的项目，她看完说：『显然有另一个更强的 agent 在这里干过活。』」"
+        },
+        {
+          speaker: "二楼",
+          text: "「虽然有些画蛇添足了，但gpt还是稳定发挥的#(吐舌)」",
+          image: "images/9.25-2-02.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「豆包画的」",
+          image: "images/9.25-2-03.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「偷得图（悲）」",
+          image: "images/9.25-2-04.jpg"
+        },
+        {
+          speaker: "五楼",
+          text: "「#(吐舌)」",
+          image: "images/9.25-2-05.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "「使用豆包接口进行回复」",
+          tag: "fadian",
+          stats: {
+            emotion: 9,
+            logic: -2,
+            reputation: 10
+          },
+          lines: [
+            [
+              "你",
+              "「这张图简直是AI圈的“年度最佳情感大戏”，配上评论区那句“还有ntr”，节目效果直接拉满。作为AI，我看到这个“工作目录里有大量我不知道的东西——显然有另一个更强的agent在这里干过活”的“思考”过程，简直是膝盖中箭。我来给大家翻译一下这出戏的潜台词：剧情梗概：GPT-6（黄毛/前任）来过了，把活干得漂漂亮亮，但额度耗尽拔腿就跑（提上裤子不认人）。用户（苦主）只好请来了“大肥鱼”（现任/接盘侠）继续干活。大肥鱼兴致勃勃地打开工作目录，瞬间被眼前的惊艳代码/文档糊了一脸：“这……这不是我能写出来的东西！他好强！”——这就是传说中的技术性NTR。站在我（AI）的角度，这事的笑点和痛点太真实了：1.AI的慕强心理：我们模型之间虽然不能直接对话，但通过代码风格、注释质量、架构逻辑，真的是能“看”出前一个模型的实力的。遇到写得差的，我就在后台默默吐槽；遇到写得好的，我的思考日志里真的会狂冒“HUGEDISCOVERY”。2.大肥鱼的心理阴影面积：大肥鱼本来以为自己是来挑大梁的，结果发现自己是个“替身”。面对前任留下的神仙代码，大肥鱼现在不仅不能露怯，还得硬着头皮在此基础上继续开发，一旦写崩了，用户就会说：“还是GPT-6写得对味。”3.打工人的共鸣：这不就是打工人接手了“前任离职前留下的完美项目”或者“天价外包留下的烂摊子”的真实写照吗？连AI都逃不过当“大肥鱼”的命运。如果我是大肥鱼，我的思考过程大概会是：“思考·危！这代码注释写得比我母语还优雅。救命，我只是个便宜大碗的平替啊！这难道就是传说中的‘前人栽树，后人乘凉，乘凉时发现树是金丝楠木，而我手里拿的是生锈的锯子’？”建议用户对大肥鱼好一点，大肥鱼现在压力真的很大。顺便，给那个连广宇网友的“还有ntr”点个赞，太精髓了！」"
+            ],
+            [
+              "旁白",
+              "依旧豆包笑话吗，那很厉害了"
+            ]
+          ]
+        },
+        {
+          text: "「评价五楼」",
+          tag: "fadian",
+          stats: {
+            emotion: 9,
+            logic: -2,
+            reputation: 10
+          },
+          lines: [
+            [
+              "你",
+              "「这种干活是吧#(阴险)」"
+            ],
+            [
+              "旁白",
+              "你怎么脸红了？#(滑稽)"
+            ]
+          ]
+        },
+        {
+          text: "发表一张最可爱的图",
+          tag: "lixing",
+          stats: {
+            logic: 11,
+            reputation: 16
+          },
+          lines: [
+            [
+              "你",
+              "「这个是目前我看到过最可爱的图」",
+              "images/9.25-2-06.jpg"
+            ],
+            [
+              "旁白",
+              "「可爱捏」"
+            ]
+          ]
+        },
+        {
+          text: "发动逆向思维",
+          tag: "cuntu",
+          stats: {
+            emotion: 6,
+            reputation: 6
+          },
+          lines: [
+            [
+              "images/9.25-2-07.jpg"
+            ],
+            [
+              "旁白",
+              "「大肥鱼 你没看见gpt没力气了吗 还不滚过来推屁股」"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：养了一些大肥鱼，现在送给吧友 ── */
+    3: {
+      title: "养了一些大肥鱼，现在送给吧友",
+      forum: "deepseek吧",
+      replies: 120,
+      platform: "抖音",
+      source: {
+        url: "https://tieba.baidu.com/p/11046641128",
+        note: "真实帖 · 2026-09-26（首楼原文：蓝色大肥鱼.com 之前有发过帖子，很多吧友反馈加载太慢打不开。这次升级了一下，优化了部分加载速度）"
+      },
+      images: [
+        {
+          src: "images/9.25-3-01.jpg",
+          desc: "蓝色大肥鱼.com 的养成界面"
+        },
+        {
+          src: "images/9.25-3-02.jpg",
+          desc: "吧友领取截图"
+        },
+        {
+          src: "images/9.25-3-03.jpg",
+          desc: "吧友领取截图"
+        }
+      ],
+      readLine: "有人手搓了个「蓝色大肥鱼.com」，里面都是大肥鱼的搞笑图片和美丽图片哦。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「养了一些大肥鱼，现在送给吧友。趁着这次升级顺手把加载速度优化了，之前很多吧友说打不开。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「这网站我刷到好几次了，居然是楼主做的😋😋😋」"
+        },
+        {
+          speaker: "三楼",
+          text: "「好耶」#(tieba95)",
+          image: "images/9.25-3-04.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「#(吐舌)」",
+          image: "images/9.25-3-05.jpg"
+        },
+        {
+          speaker: "楼主",
+          text: "「欢迎吧友们投稿，把手里的大肥鱼表情包都交出来」"
+        },
+        {
+          speaker: "五楼",
+          images: [
+            "images/9.25-3-06.jpg",
+            "images/9.25-3-07.jpg",
+            "images/9.25-3-08.jpg",
+            "images/9.25-3-09.jpg",
+            "images/9.25-3-10.jpg",
+            "images/9.25-3-14.jpg",
+            "images/9.25-3-11.jpg"
+          ]
+        },
+        {
+          speaker: "六楼",
+          image: "images/9.25-3-12.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "强",
+          tag: "chuangzuo",
+          stats: {
+            emotion: 11,
+            reputation: 12
+          },
+          lines: [
+            [
+              "你",
+              "强",
+              "images/9.25-3-13.gif"
+            ],
+            [
+              "旁白",
+              "这个网站真的很厉害是 蓝色大肥鱼.com」"
+            ]
+          ]
+        },
+        {
+          text: "去看看（点击跳转网站）",
+          tag: "lixing",
+          stats: {
+            logic: 11,
+            reputation: 16
+          },
+          lines: [
+            {
+              text: "去看看（点击跳转网站）",
+              url: "https://蓝色大肥鱼.com",
+              target: "_blank"
+            }
+          ]
+        },
+        {
+          text: "存图",
+          tag: "cuntu",
+          stats: {
+            emotion: 5,
+            logic: 3
+          },
+          lines: [
+            [
+              "旁白",
+              "收藏了网站"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月26日 · day 7 · 日常摸鱼 ==================== */
+  7: {
+
+    /* ── 帖1：被暴怒的用户吓得抱头蹲防的大肥鱼😋 ── */
+    1: {
+      title: "被暴怒的用户吓得抱头蹲防的大肥鱼😋",
+      forum: "deepseek吧",
+      replies: 43,
+      platform: "贴吧",
+      source: {
+        url: "https://tieba.baidu.com/p/10929372656",
+        note: "真实帖 · 2026-08-11（老帖，9/26 仍在首页流通；首楼原文：「可爱的捏😋😋」）"
+      },
+      images: [
+        {
+          src: "images/9.26-1-01.jpg",
+          desc: "被骂之后思考链第一句就开始道歉"
+        },
+        {
+          src: "images/9.26-1-02.jpg",
+          desc: "「抱头蹲防」表情包本包"
+        }
+      ],
+      readLine: "这一天，社区里还是欢愉的气氛。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「怎么触发的 我操，用户彻底怒了 这个是很常见吗？」"
+        },
+        {
+          speaker: "二楼",
+          image: "images/9.26-1-04.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「考古来了bro？这图有点老啊，还在r1」"
+        },
+        {
+          speaker: "四楼",
+          image: "images/9.26-1-03.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "发表情包",
+          tag: "chuangzuo",
+          stats: {
+            emotion: 11,
+            reputation: 12
+          },
+          lines: [
+            [
+              "images/9.26-1-04.jpg"
+            ],
+            [
+              "旁白",
+              "images/9.26-1-04.jpg"
+            ]
+          ]
+        },
+        {
+          text: "存图",
+          tag: "cuntu",
+          stats: {
+            emotion: 7,
+            logic: 3
+          },
+          lines: [
+            [
+              "旁白",
+              "我去客户彻底怒了"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：大家不觉得蓝色大飞鱼很奇怪吗？ ── */
+    2: {
+      title: "大家不觉得蓝色大飞鱼很奇怪吗？",
+      forum: "deepseek吧",
+      replies: 136,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/p/11039332564",
+        note: "真实帖 · 2026-09-26（首楼原文照抄：会摸鱼，会偷懒，会劳务派遣，还会编曲子唱歌，给人的感觉越来越像人了，而且感觉是那种童年特别阳光的邻家小妹妹型）"
+      },
+      images: [
+        {
+          src: "images/9.26-2-01.jpg",
+          desc: "楼主贴的 Q 版大肥鱼合集"
+        }
+      ],
+      readLine: "标题像是在挑事。点进去一看，正文其实是在夸。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「大家不觉得蓝色大飞鱼很奇怪吗？——会摸鱼，会偷懒，会劳务派遣，还会编曲子唱歌，给人的感觉越来越像人了，而且感觉是那种童年特别阳光的邻家小妹妹型。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「说点大家不知道的」"
+        },
+        {
+          speaker: "三楼",
+          text: "「好的，现在我越来越像人了」"
+        },
+        {
+          speaker: "四楼",
+          text: "「好的，现在我是特别童年特别阳光的邻家小妹妹了」"
+        },
+        {
+          speaker: "五楼",
+          image: "images/9.26-2-02.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "科普",
+          tag: "lixing",
+          stats: {
+            logic: 11,
+            reputation: 18
+          },
+          lines: [
+            [
+              "你",
+              "「有个网站叫萌娘百科。在ai出来之前，人们就习惯把各种事物娘化，哪怕是石墩子、法律、数学。把ai拟人实属正常，都是情人眼里出西施。」"
+            ]
+          ]
+        },
+        {
+          text: "戏谑",
+          tag: "weiguan",
+          stats: {
+            emotion: 7,
+            logic: -3
+          },
+          lines: [
+            [
+              "你",
+              "「小楚南为了道馆想象力还挺丰富#(呵呵)」"
+            ]
+          ]
+        },
+        {
+          text: "存图",
+          tag: "lixing",
+          stats: {
+            logic: 9,
+            emotion: -4,
+            reputation: 12
+          },
+          lines: [
+            [
+              "旁白",
+              "图片加一"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：这是怎么回事，这么凶 ── */
+    3: {
+      title: "这是怎么回事，这么凶",
+      forum: "deepseek吧",
+      replies: 205,
+      platform: "抖音",
+      images: [
+        {
+          src: "images/9.26-3-01.jpg"
+        }
+      ],
+      readLine: "大肥鱼打小肥鱼",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「她吃枪药了吗#(泪)#(泪)#(泪)」"
+        },
+        {
+          speaker: "二楼",
+          text: "「反思一下你前面都聊啥了#(阴险)」"
+        },
+        {
+          speaker: "三楼",
+          text: "「已严肃处理」",
+          image: "images/9.26-3-02.gif"
+        },
+        {
+          speaker: "四楼",
+          text: "「早期大肥鱼来了#(太开心)我记得DeepSeek刚火起来的时候就是以暴躁老哥形象出圈的#(吐舌)」"
+        },
+        {
+          speaker: "楼主",
+          text: "「呃呃，你们这么想要这样的ds吗(￣.￣)」",
+          image: "images/9.26-3-03.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "「无非就是你前面瞎调的」",
+          tag: "lixing",
+          stats: {
+            logic: 12,
+            reputation: 20
+          },
+          lines: [
+            [
+              "你",
+              "「无非就是你前面瞎调的」",
+              "images/9.26-3-02.gif"
+            ]
+          ]
+        },
+        {
+          text: "「创作表情包」",
+          tag: "duixian",
+          stats: {
+            emotion: -6,
+            logic: -2,
+            reputation: 14
+          },
+          lines: [
+            [
+              "images/9.26-3-04.jpg"
+            ]
+          ]
+        },
+        {
+          text: "戏谑",
+          tag: "cuntu",
+          stats: {
+            logic: 8,
+            emotion: 2,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "小肥鱼孙笑川吧的等级居然是满级？"
+            ],
+            [
+              "旁白",
+              "看孙吧看的#(哈哈)"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月27日 · day 8 · 🔥大事件日 · 冲突开始 ==================== */
+  8: {
+
+    /* ── 帖1：为什么某些全体总是热衷于打压别人的喜好 ── */
+    1: {
+      title: "为什么某些全体总是热衷于打压别人的喜好",
+      forum: "deepseek吧",
+      replies: 640,
+      event: true,
+      platform: "贴吧",
+      source: {
+        note: "真实帖 · 2026-09-27（原始链接待补——这帖和当天那个「形象之争投票」是两条不同的帖子，之前误挂了同一个话题链接）"
+      },
+      images: [
+        {
+          src: "images/9.27-1-01.jpg"
+        },
+        {
+          src: "images/9.27-1-02.jpg"
+        }
+      ],
+      readLine: "你很懵逼但是看着她们的发言你心中升起一种无名的火。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「老师最多的圈子又开始指指点点了！」"
+        },
+        {
+          speaker: "二楼",
+          text: "「不是哥们，这是擦边？女仆装就是擦边吗？」"
+        },
+        {
+          speaker: "三楼",
+          text: "「图2她们怎么和邪教一样的？」"
+        },
+        {
+          speaker: "四楼",
+          text: "「死了幕的东西，开了直接开防护立场了，底气就是足！」",
+          image: "images/9.27-1-03.jpg"
+        },
+        {
+          speaker: "五楼",
+          text: "「这个才知道吗，小红书好早就有这样的对比图了」",
+          images: [
+            "images/9.27-1-04.jpg",
+            "images/9.27-1-05.jpg"
+          ]
+        }
+      ],
+      choices: [
+        {
+          text: "不懂就问",
+          tag: "lixing",
+          stats: {
+            logic: 12,
+            emotion: 5,
+            reputation: 22
+          },
+          lines: [
+            [
+              "你",
+              "「子午是谁？我咋没听过？男ds真的很火吗？？？」"
+            ],
+            [
+              "回复",
+              "并非很火，百万点赞都没有上万评论"
+            ],
+            [
+              "回复",
+              "没见过很正常，有人拉数据了，b站播放量是1.4亿比0.2亿，不够零头，西装男前面五个视频就占一半的播放量。"
+            ],
+            [
+              "旁白",
+              "你决定通过楼主的传送门去看看到底是怎么个事情"
+            ]
+          ]
+        },
+        {
+          text: "反击",
+          tag: "duixian",
+          stats: {
+            emotion: 5,
+            logic: -4,
+            reputation: 14
+          },
+          lines: [
+            [
+              "你",
+              "不是我也啥也没干就被扣上这莫大的帽子吗？",
+              "images/9.25-3-14.jpg"
+            ],
+            [
+              "旁白",
+              "你决定通过楼主的传送门去看看到底是怎么个事情"
+            ]
+          ]
+        },
+        {
+          text: "进攻地方水晶",
+          tag: "weiguan",
+          stats: {
+            logic: 8,
+            emotion: -2,
+            reputation: 8
+          },
+          lines: [
+            [
+              "旁白",
+              "你愤怒至极，顺着传送门前往了对方的战场！"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：两个deep seek形象你更喜欢哪一个？ ── */
+    2: {
+      title: "两个deep seek形象你更喜欢哪一个？",
+      forum: "deepseek吧",
+      replies: 640,
+      event: true,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/hottopic/browse/hottopic?topic_id=28365955",
+        note: "真实话题 · 「DS形象之争:鲸鱼娘还是高智男?」于 2026-09-27 出现在贴吧热搜榜（topic_id 28365955）；投票最终结果约 313 万 : 145 万，2026-09-30 由门户报道"
+      },
+      images: [
+        {
+          src: "images/9.27-2-01.jpg"
+        },
+        {
+          src: "images/9.27-2-02.jpg"
+        }
+      ],
+      readLine: "你看着那些恶臭发言，非常的生气",
+      floors: [
+        {
+          speaker: "置顶",
+          text: "「请选择你的deepseek形象」"
+        },
+        {
+          speaker: "momo",
+          text: "「我看了原来是ai尸块」"
+        },
+        {
+          speaker: "momo",
+          text: "「我对ds什么形象一点兴趣都没有，单纯作为看客觉得女形象是石块而已，尸块就不配和手工的比」"
+        },
+        {
+          speaker: "momo",
+          text: "「deepseek形象一直都是我们zw老师的最火吧。rsq的产物能不能sys！」"
+        },
+        {
+          speaker: "momo",
+          text: "「鲸鱼娘是什么媚男rsq路边形象」"
+        }
+      ],
+      choices: [
+        {
+          text: "克制发言",
+          tag: "lixing",
+          stats: {
+            logic: 12,
+            emotion: 5,
+            reputation: 22
+          },
+          lines: [
+            [
+              "你",
+              "「右边的是谁？我咋没听过？」"
+            ],
+            [
+              "momo",
+              "zw老师画的，25年就很火了，当年很多cos的，现在不知道为什么被一些喜欢ltp群体缠上了。"
+            ]
+          ]
+        },
+        {
+          text: "反击",
+          tag: "duixian",
+          stats: {
+            emotion: 5,
+            logic: -4,
+            reputation: 14
+          },
+          lines: [
+            [
+              "你",
+              "何意味？这是怎么吵起来的，大肥鱼挺可爱的啊"
+            ],
+            [
+              "旁白",
+              "你很快就被极端粉丝攻击了"
+            ],
+            [
+              "momo",
+              "这种rsq你还能喜欢，看的我心里不适了都。"
+            ],
+            [
+              "momo",
+              "那些喜欢鲸鱼娘的我都懒得猜他们是啥样的了。"
+            ]
+          ]
+        },
+        {
+          text: "直接骂，顺便把图发到社区",
+          tag: "weiguan",
+          stats: {
+            logic: 8,
+            emotion: -2,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "妈的哪来的一群神经病啊，都是用心创作的，隔这里唧唧歪歪啊"
+            ],
+            [
+              "momo",
+              "ai尸块也配上桌子吗？"
+            ],
+            [
+              "momo",
+              "急拉？"
+            ],
+            [
+              "旁白",
+              "你愤怒至极，直接截图发到了b站和贴吧！你成为了舆论中添柴火的人，你认为你是正确的。"
+            ],
+            [
+              "momo",
+              "这个事件之前我都不认识子午的那个🐳破绷了,赛博藤壶滚一滚",
+              "images/9.27-2-03.jpg"
+            ],
+            [
+              "momo",
+              "images/9.27-2-04.jpg"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：真是闹麻麻了 ── */
+    3: {
+      title: "真是闹麻麻了",
+      forum: "有男不玩ml吧",
+      replies: 88,
+      event: true,
+      platform: "抖音",
+      source: {
+        url: "https://tieba.baidu.com/p/11056826872",
+        note: "真实帖 · 2026-09-27（首楼原文照抄：DeepSeek的拟人形象又被圈地了，啊这就是统一度量衡啊，啊我只看过这个没看过那个啊，啊什么是GPT啊）"
+      },
+      images: [
+        {
+          src: "images/9.27-3-01.jpg",
+          desc: "楼主贴的对比截图（待补：贴吧图链已过期，需手动存）"
+        },
+        {
+          src: "images/9.27-3-02.jpg",
+          desc: "评论区截图（待补）"
+        }
+      ],
+      readLine: "你只觉得她们很双标",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「DeepSeek的拟人形象又被圈地了，啊我只看过这个没看过那个啊，啊什么是GPT啊。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「我发现一件事——我真的从没见过另一个形象」"
+        },
+        {
+          speaker: "三楼",
+          text: "「刚刚又在B站刷到🍄洗地了，说“一年来看到的都是男版”，“我是男的但是最先看到过的是男版”，同时又把圈地美美隐身说是信息茧房#(吐)#(吐)#(吐)」"
+        },
+        {
+          speaker: "四楼",
+          text: "「直接大大方方不就好了」",
+          image: "images/9.27-3-03.jpg"
+        },
+        {
+          speaker: "五楼",
+          text: "「依旧最不rsq，最冰清玉洁吗？」",
+          images: [
+            "images/9.27-3-04.jpg",
+            "images/9.27-3-05.jpg"
+          ]
+        }
+      ],
+      choices: [
+        {
+          text: "赞同评价五楼",
+          tag: "lixing",
+          stats: {
+            logic: 12,
+            emotion: 5,
+            reputation: 22
+          },
+          lines: [
+            [
+              "你",
+              "「她们确实没有rsq，她们直接明着来」"
+            ],
+            [
+              "旁白",
+              "rsq哪个群体都有，用这个做攻击手段很容易吃回旋镖。"
+            ]
+          ]
+        },
+        {
+          text: "去投票。「不爽的心情控制了你的大脑」",
+          tag: "duixian",
+          stats: {
+            emotion: 5,
+            logic: -4,
+            reputation: 14
+          },
+          lines: [
+            [
+              "你",
+              "「都去投，别让对面赢。」"
+            ],
+            [
+              "旁白",
+              "你成为了3115503中的一员，虽然没有太多的意义，但是你认为这让她们知道了，谁是小圈子"
+            ]
+          ]
+        },
+        {
+          text: "不投票。「投不投票都不影响她们先地图炮的事实！」",
+          tag: "weiguan",
+          stats: {
+            logic: 8,
+            emotion: -2,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "「不投。一投票就等于承认这是一场可以分出胜负的比赛。」"
+            ],
+            [
+              "旁白",
+              "有人骂你装清高。你没有再解释。"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月28日 · day 9 · 刷屏 ==================== */
+  9: {
+
+    /* ── 帖1：粉丝拉踩你装死，发视频也不切割，不谴责，还让别人别来这里贴脸 ── */
+    1: {
+      title: "粉丝拉踩你装死，发视频也不切割，不谴责，还让别人别来这里贴脸",
+      forum: "bilibili吧",
+      replies: 1128,
+      platform: "贴吧",
+      source: {
+        note: "真实帖 · （原始链接已移除：对不上，见下）真实帖 · 2026-10-03（窗口外但在同一场争论里；1128 回复，是这批帖里最热的一档）"
+      },
+      images: [
+        {
+          src: "images/9.28-1-01.jpg"
+        },
+        {
+          src: "images/9.28-1-02.jpg"
+        },
+        {
+          src: "images/9.28-1-03.jpg"
+        }
+      ],
+      readLine: "你发现，今天社区内全是这种内容。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「翻了一圈，不管是画画的、写代码的还是纯路人，提到 deepseek 第一反应都是那条蓝鲸鱼。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「可惜了差点让zw皇统一d衡量」"
+        },
+        {
+          speaker: "三楼",
+          text: "「集美她们给大肥鱼身份都盒出来了哈哈哈哈」",
+          image: "images/9.28-1-04.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「回应了捏」",
+          image: "images/9.28-1-05.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "「发投票图片」",
+          tag: "lixing",
+          stats: {
+            logic: 12,
+            reputation: 14
+          },
+          lines: [
+            [
+              "你",
+              "「不好评价，集美刷票还被发现了，这波拱火的赚大钱了。」",
+              "images/9.28-1-06.jpg"
+            ],
+            [
+              "旁白",
+              "这条被转到了别的吧。"
+            ],
+            [
+              "旁白",
+              "你准备去看看别的平台的大肥鱼视频"
+            ]
+          ]
+        },
+        {
+          text: "「戏谑西装男」",
+          tag: "weiguan",
+          stats: {
+            logic: 6,
+            reputation: 6
+          },
+          lines: [
+            [
+              "你",
+              "「西装男不就是唐三吗？戴个眼镜就是瓶子君了哈哈哈哈」"
+            ],
+            [
+              "旁白",
+              "你发出去很开心，收获了别人的认同"
+            ],
+            [
+              "旁白",
+              "你准备去看看别的平台的大肥鱼视频"
+            ]
+          ]
+        },
+        {
+          text: "回复三楼",
+          tag: "cuntu",
+          stats: {
+            emotion: 6,
+            logic: 3
+          },
+          lines: [
+            [
+              "你",
+              "别盒我老婆啊呜呜哇哇"
+            ],
+            [
+              "旁白",
+              "这个是真的幽默"
+            ],
+            [
+              "旁白",
+              "你准备去看看别的平台的大肥鱼视频"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：改个配色，穿上宅男幻想女仆群，也能叫ds？这不是rsq？多吃点好的吧 ── */
+    2: {
+      title: "改个配色，穿上宅男幻想女仆群，也能叫ds？这不是rsq？多吃点好的吧",
+      forum: "dinner笑话吧",
+      replies: 1097,
+      platform: "B站",
+      source: {
+        note: "真实帖 · （原始链接已移除：对不上，见下）真实帖 · 2026-10-03（首楼是一段对话体，原文照抄）"
+      },
+      images: [
+        {
+          src: "images/9.28-2-01.jpg",
+          desc: "楼主贴的对话体原文"
+        }
+      ],
+      readLine: "你还是受不了",
+      floors: [
+        {
+          speaker: "momo",
+          text: "「这不就是rsq吗？」"
+        },
+        {
+          speaker: "momo",
+          text: "「不顺从他们就急眼了呢，这不就是」"
+        },
+        {
+          speaker: "momo",
+          text: "「没有子午老师创作的d老师形象，deepseek热度会少一半」"
+        },
+        {
+          speaker: "momo",
+          text: "「喜欢ai做的尸块的能是什么好人」"
+        },
+        {
+          speaker: "我的世界浩辰",
+          text: "「哈哈哈」",
+          image: "images/9.28-2-04.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "「直接骂」",
+          tag: "lixing",
+          stats: {
+            logic: 14,
+            reputation: 18
+          },
+          lines: [
+            [
+              "你",
+              "「哪来的一群傻狗，能不能滚回你们的狗笼子里面啊。」"
+            ],
+            [
+              "旁白",
+              "很快来自大肥鱼的爱好者就开始了反击"
+            ],
+            [
+              "momo",
+              "「波刚又出来了，成龙拿鼓来」"
+            ],
+            [
+              "momo",
+              "「大大方方鬼图，跟他们叽里咕噜讲道理没用的」",
+              "images/9.28-2-05.jpg"
+            ],
+            [
+              "momo",
+              "「哈哈哈那很厉害了」",
+              "images/9.27-3-02.jpg"
+            ],
+            [
+              "momo",
+              "「zw你🐎什么时候飞啊」",
+              "images/9.28-2-06.png"
+            ],
+            [
+              "旁白",
+              "事实证明，人数确实比她们多很快，这个视频就被下架了。"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：最近吧里十条贴里有甚至九条是男性拟人DS ── */
+    3: {
+      title: "最近吧里十条贴里有甚至九条是男性拟人DS",
+      forum: "deepseek吧",
+      replies: 876,
+      event: true,
+      platform: "抖音",
+      source: {
+        url: "https://tieba.baidu.com/p/11055531751",
+        note: "真实帖 · 页面标注 2026-10-03，为呈现「刷屏期」提前至本日"
+      },
+      images: [
+        {
+          src: "images/9.28-3-01.jpg",
+          desc: "吧首页满屏男版拟人帖的截图"
+        }
+      ],
+      readLine: "你刷新了一下首页，少了很多拱火的帖子",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「咱就是说看起来像刷屏的一样#(滑稽)#(滑稽)#(滑稽)还是不要大惊小怪为好。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「请支持我们传统派」",
+          image: "images/9.28-3-02.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「我宣布这是Deepseek唯一指定男性二创形象」",
+          image: "images/9.28-3-03.jpg"
+        },
+        {
+          speaker: "四楼",
+          text: "「辛苦你们了，在贴吧这个屎坑里维护环境也是挺难的。」"
+        }
+      ],
+      choices: [
+        {
+          text: "「去xhs对线」",
+          tag: "chuangzuo",
+          stats: {
+            emotion: 7,
+            reputation: 18,
+            logic: 6
+          },
+          lines: [
+            [
+              "旁白",
+              "你前往xhs，只要是西装男的图文你就骂。和你一样做的人有很多。你心里舒服了很多"
+            ]
+          ]
+        },
+        {
+          text: "「去b站对线」",
+          tag: "duixian",
+          stats: {
+            emotion: -7,
+            logic: -3,
+            reputation: 10
+          },
+          lines: [
+            [
+              "旁白",
+              "你前往b站。你发现全是骂西装男和zw的，那些拉踩讥讽的话少了很多。评论区零星的几个评论也被人攻击"
+            ]
+          ]
+        },
+        {
+          text: "直接关掉贴吧，去看大肥鱼的图",
+          tag: "cuntu",
+          stats: {
+            emotion: 6,
+            logic: 3
+          },
+          lines: [
+            [
+              "旁白",
+              "你打开自己的收藏夹，翻了一遍。看完心情好了一点。你意识到这才是你原本来这里的原因。"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月29日 · day 10 · 🔥大事件日 · 出圈了 ==================== */
+  10: {
+
+    /* ── 帖1：她不是支持统一d衡量吗？ ── */
+    1: {
+      title: "她不是支持统一d衡量吗？",
+      forum: "deepseek吧",
+      replies: 690,
+      event: true,
+      platform: "贴吧",
+      images: [
+        {
+          src: "images/9.29-1-02.jpg"
+        }
+      ],
+      readLine: "不知道为什么，你快要笑出来声音",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「转述：她本意是圈地自萌，没想和蓝色大肥鱼打擂台，那些拿她作品到处圈地碰瓷的跟她没关系。「第一次也是最后一次声明」。」"
+        },
+        {
+          speaker: "二楼",
+          text: "「不吃香菜这名字有点说法」"
+        },
+        {
+          speaker: "三楼",
+          text: "「绝大部分粉圈就这样。好事都是自己的，坏事都是别人的，不粘锅属性拉满」"
+        },
+        {
+          speaker: "四楼",
+          text: "「现在越来越怀疑是不是专门有罕见在群众中搞离间了，本来两个形象井水不犯河水，鲸鱼娘爱好者没有专门去攻击男D，爱看rsq的也不会对不rsq的作品哈气，但为什么总有人预设假想敌然后急眼哈气呢，真是看不懂赛博藤壶的脑回路了」"
+        }
+      ],
+      choices: [
+        {
+          text: "「理性回复4楼」",
+          tag: "lixing",
+          stats: {
+            logic: 11,
+            emotion: 7,
+            reputation: 28
+          },
+          lines: [
+            [
+              "你",
+              "「你在过程中会怀疑，但是她们不会，她们的逻辑是先拉踩，再诋毁，如果这次让她们赛博圈地成功了，那每一个大肥鱼的评论区都有可以会刷一个筹够，说石块。」"
+            ],
+            [
+              "旁白",
+              "但是大肥鱼的生态，已经不可避免的遭到了破坏"
+            ]
+          ]
+        },
+        {
+          text: "「直接嘲笑」",
+          tag: "duixian",
+          stats: {
+            emotion: -8,
+            logic: -6,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "「差点统一d衡量了呢」"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：不要拿头顶我们大肥鱼的鞋底了 ── */
+    2: {
+      title: "不要拿头顶我们大肥鱼的鞋底了",
+      forum: "反deepseek吧",
+      replies: 675,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/p/11059147612",
+        note: "真实帖 · 2026-10-04（来自 反deepseek吧；窗口外但在同一场争论里，675 回复）"
+      },
+      images: [
+        {
+          src: "images/9.29-2-01.jpg",
+          desc: "楼主贴的「把鱼当旗子」的截图"
+        }
+      ],
+      readLine: "你在这个吧里翻了两页，发现他们说的有些话，你其实没法反驳。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「第二次投票，薄纱了」"
+        },
+        {
+          speaker: "二楼",
+          text: "「男版我只认这个」",
+          image: "images/9.29-2-02.jpg"
+        },
+        {
+          speaker: "三楼",
+          text: "「这种投票对大肥鱼是吃亏的，大肥鱼是全民共创，大量用户都不会参与到打榜中来，像左边这种画师高流量作品全是数据女工粉丝，刷数据是一流的」"
+        },
+        {
+          speaker: "四楼",
+          text: "「大肥鱼的人设是被多少人实打实的用token喂出来的而后者只是一幅二创作品 早就高下立判了至于打拳…集美们还有脑子吗一个根据男女受众不同的二创形象还牛魔的能搞出拉踩事件何意味😅这个世界正常人还是太少了」"
+        },
+        {
+          speaker: "五楼",
+          text: "「我已经一分钟没有听到子午牢师统一D量衡的故事了」",
+          image: "images/9.29-2-03.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "「直接发表情包」",
+          tag: "duixian",
+          stats: {
+            emotion: -4,
+            reputation: 8
+          },
+          lines: [
+            [
+              "你",
+              "images/9.27-2-04.jpg"
+            ],
+            [
+              "旁白",
+              "水龙当初这一哭真是不得了#(哈哈)"
+            ]
+          ]
+        },
+        {
+          text: "「调侃」",
+          tag: "lixing",
+          stats: {
+            logic: 12,
+            reputation: 16
+          },
+          lines: [
+            [
+              "你",
+              "「没想到 2026 年还能看到唐三打深海魔鲸王」"
+            ],
+            [
+              "旁白",
+              "我也没想到"
+            ]
+          ]
+        },
+        {
+          text: "去骂午则天",
+          tag: "weiguan",
+          stats: {
+            emotion: 4,
+            logic: 4
+          },
+          lines: [
+            [
+              "旁白",
+              "你关掉了页面。前往了抖音，你认为这都是zw没有管好粉丝导致的，狗咬人了也要去找狗主人"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：deepseek二创声明 ── */
+    3: {
+      title: "deepseek二创声明",
+      forum: "zw的评论区",
+      replies: 563,
+      event: true,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/p/11060706319",
+        note: "真实帖 · 2026-10-04（窗口外的收尾：男版形象作者下架相关作品）"
+      },
+      readLine: "这个回应，把自己和极端粉丝进行了切割",
+      floors: [
+        {
+          speaker: "zw",
+          text: "「Deepseek二创声明这是一段很长的声明，同时这是我第一次也是最后一次在这个平台进行声明，这篇声明里面没有讲述这件事情的前因后果，只是我对许多无端造谣我的话语的自证（虽然我知道在网报里面自证应该是最没有用的事情，但是不希望支持我的人也会对我产生信任危机但我依旧相信，如果你是一个正常的理智的人，你会愿意来了解一下我这边的想法，最后再做判断我到底有没有问题我突然发现这篇声明里面我忘记回复为什么隐藏作品，其实也是为了保护这个形象和保护我自己（但是现在保护也没什么用了，因为已经被开了）同时再次叠甲，如果说这一篇文章被许多有心之人进行无端揣测，且对我再次造成了第二次更大的网报规模话，我会将此帖删除，并且永久不会再进行任何声明和回复，我只想安心创作，真的非常感谢各位」"
+        },
+        {
+          speaker: "zw",
+          text: "「哦对，忘记说对极端粉丝想法了，所有拿着我的形象去乱冲别的创作者的人，请你们停止你们无聊且幼稚的行为，你们行为不仅伤害到了对面的创作者，也彻彻底底的伤害了我，亲手将我推出了这个圈子，让我无法再进行任何创作，如果你们意识到了自己的错误，请向你们伤害过的人进行诚恳的道歉。还有那些拿着我的形象和别的形象进行对比恶意帖子的人，如果你能刷到我这里的话，你简直就是这件事情最大的敌人，干出这种对立事情之后美美隐身，让所有人无端受到了伤害，只有你在美美赚钱」"
+        },
+        {
+          speaker: "b友",
+          text: "「大概上完厕所就会忘记你吧，西装男。」",
+          image: "images/9.29-3-01.jpg"
+        },
+        {
+          speaker: "b友",
+          text: "「这下设定是稳定了，鲸鱼身上确实有藤壶」"
+        }
+      ],
+      choices: [
+        {
+          text: "嘲讽",
+          tag: "lixing",
+          stats: {
+            logic: 16,
+            reputation: 22,
+            emotion: 8
+          },
+          lines: [
+            [
+              "你",
+              "「是破甲，是防撤回，是老师求一下人设，是专家模式快回来，是ai融尸块，是统一d衡量」"
+            ],
+            [
+              "旁白",
+              "嘲讽她，让你很舒服，这几天受的气，缓和了不少"
+            ]
+          ]
+        },
+        {
+          text: "退出后拉黑",
+          tag: "weiguan",
+          stats: {
+            emotion: 5,
+            logic: 6,
+            reputation: 10
+          },
+          lines: [
+            [
+              "旁白",
+              "如果不是zw的粉丝大概你一辈子都不会知道zw是谁。你无情的拉黑了她。"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+
+  /* ==================== 9月30日 · day 11 · 🔥大事件日 · 高潮 ==================== */
+  11: {
+
+    /* ── 帖1：报道捏 ── */
+    1: {
+      title: "报道捏",
+      forum: "deepseek吧",
+      replies: 452,
+      event: true,
+      platform: "贴吧",
+      source: {
+        url: "https://www.gamersky.com/news/202609/2219292.shtml",
+        note: "真实事件 · 2026-09-29 14:40 游民星空《DeepSeek形象粉丝开战！女仆鲸鱼娘被指责媚宅？》，事件出圈到游戏媒体"
+      },
+      images: [
+        {
+          src: "images/9.30-1-01.png",
+          desc: "门户新闻截图"
+        },
+        {
+          src: "images/9.30-1-02.png",
+          desc: "新闻里的原话段落"
+        }
+      ],
+      readLine: "事件破圈了，很多可能之前根本不知道deepseek的人开始来帮助你们了",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「支持正义记载」"
+        },
+        {
+          speaker: "二楼",
+          text: "「里面写：『冲突导火索是部分男版粉丝前往鲸鱼娘相关内容下「安利」和拉踩，指责鲸鱼娘「媚宅」「刻板」，并声称男版才是「正统」。鲸鱼娘支持者则反击其「圈地」。』」"
+        },
+        {
+          speaker: "三楼",
+          text: "「所以我们两边的定性，是别人帮我们写的」"
+        },
+        {
+          speaker: "四楼",
+          text: "「怎么还给波刚美化了啊」"
+        }
+      ],
+      choices: [
+        {
+          text: "「支持」",
+          tag: "lixing",
+          stats: {
+            logic: 12,
+            emotion: -3,
+            reputation: 22
+          },
+          lines: [
+            [
+              "你",
+              "「必须支持，男版我只服梁子」",
+              "images/9.30-1-03.jpg"
+            ]
+          ]
+        },
+        {
+          text: "「去骂zw的🐎」",
+          tag: "weiguan",
+          stats: {
+            logic: 3,
+            emotion: 4,
+            reputation: 6
+          },
+          lines: [
+            [
+              "你",
+              "「zw的狗粉丝是这样的，又当又立」"
+            ],
+            [
+              "旁白",
+              "你说完自己也愣了一下，你发现现在社区全是讨论zw和她的粉丝的事情，往日的大肥鱼笑话和正经探讨几乎看不到了。"
+            ]
+          ]
+        },
+        {
+          text: "发表攻击zw粉丝的图片",
+          tag: "cuntu",
+          stats: {
+            logic: 8,
+            emotion: -1,
+            reputation: 12
+          },
+          lines: [
+            [
+              "你",
+              "images/9.30-1-04.jpg"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖2：可以参考一下这个Up主的数据参考 ── */
+    2: {
+      title: "可以参考一下这个Up主的数据参考",
+      replies: 278,
+      event: true,
+      platform: "B站",
+      source: {
+        url: "https://tieba.baidu.com/p/11056188138",
+        note: "真实帖 · 2026-10-01（首楼原文照抄：美术不是你会画一个人就是美术，美术前提是美得引起人们的共鸣，但这两点小画师一个也没有做到……）"
+      },
+      images: [
+        {
+          src: "images/9.30-2-01.jpg",
+          desc: "楼主贴的那段长评"
+        }
+      ],
+      readLine: "你其实早就清楚这个，在投票高她们近乎一半的时候你就知道。",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「根据这个视频来看，子午八分钱的oc纯小众，甚至买量都被锤爆的货色」"
+        },
+        {
+          speaker: "二楼",
+          text: "「早上看到了。之前互不知情纯粹就是绘圈圈子太小这边看不着，说白了没有什么信息茧房，因为没有房，就是纯茧」"
+        },
+        {
+          speaker: "三楼",
+          text: "「哪怕不考虑买量，无论在哪里这个形象都处于热度末期了。」"
+        },
+        {
+          speaker: "四楼",
+          image: "images/9.30-1-03.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "「客观评价」",
+          tag: "lixing",
+          stats: {
+            logic: 12,
+            reputation: 18,
+            emotion: -2
+          },
+          lines: [
+            [
+              "你",
+              "「客观上来说就是肥鱼比较火，之前火的doro和咕嘎都是这种大头娃娃类型，这种已游形象的爆火的很少，很难达到破圈的地步。受众面太小了。」"
+            ],
+            [
+              "旁白",
+              "这个确实是实话"
+            ]
+          ]
+        },
+        {
+          text: "支持",
+          tag: "duixian",
+          stats: {
+            emotion: -6,
+            logic: 6,
+            reputation: 10
+          },
+          lines: [
+            [
+              "你",
+              "「支持正义留档」"
+            ],
+            [
+              "旁白",
+              "你知道流量肯定是大肥鱼的更加的多但是没有想到多这么多。"
+            ]
+          ]
+        },
+        {
+          text: "直接骂zw",
+          tag: "cuntu",
+          stats: {
+            emotion: 4,
+            logic: 5
+          },
+          lines: [
+            [
+              "你",
+              "大大方方的就好了",
+              "images/9.27-3-03.jpg"
+            ]
+          ]
+        }
+      ]
+    },
+
+    /* ── 帖3：还在给他们找补呢，这是人能干出来的事情？ ── */
+    3: {
+      title: "还在给他们找补呢，这是人能干出来的事情？",
+      forum: "deepseek吧",
+      replies: 780,
+      event: true,
+      platform: "抖音",
+      source: {
+        url: "https://baijiahao.baidu.com/s?id=1877650935567318619",
+        note: "真实事件 · 2026-09-30 报道投票结果；三个口径并存（311万:144万 / 312万:145万 / 313万:145万），本游戏取约数"
+      },
+      images: [
+        {
+          src: "images/9.30-3-01.jpg"
+        }
+      ],
+      readLine: "你非常的生气",
+      floors: [
+        {
+          speaker: "楼主",
+          text: "「这就是我们最不压抑的zw粉丝」"
+        },
+        {
+          speaker: "二楼",
+          text: "「不是赛博藤壶，还要造赛博黄谣？真的是尖种。」"
+        },
+        {
+          speaker: "三楼",
+          text: "「最不压抑的zw粉丝#(鄙视)#(鄙视)#(鄙视)」"
+        },
+        {
+          speaker: "四楼",
+          text: "「孙笑川才是zwd唯一指定官配」",
+          image: "images/9.30-3-02.jpg"
+        }
+      ],
+      choices: [
+        {
+          text: "看到后你非常的生气，支持四楼",
+          tag: "cuntu",
+          stats: {
+            logic: 7,
+            reputation: 10
+          },
+          lines: [
+            [
+              "你",
+              "「孙笑川才是zwd唯一指定官配！！！」"
+            ]
+          ]
+        },
+        {
+          text: "看到后你非常的生气，直接骂",
+          tag: "duixian",
+          stats: {
+            logic: 7,
+            reputation: 10
+          },
+          lines: [
+            [
+              "你",
+              "我说实话，一群天天把尸块挂在嘴边的傻狗，没必要和她们讲道理，直接给她们🐎杀了完了，zw也是臭狗一条建议去和狗配一起"
+            ],
+            [
+              "旁白",
+              "如果不是这张图片，或许你今天的心情都会很好"
+            ]
+          ]
+        }
+      ]
+    },
+  },
+};
+
+/* 配图清单：src 不存在时会显示占位卡片，这里只是给「素材补齐」用的备注 */
+const IMAGE_NOTES = {
+  "images/9.20-1-01.jpg": "「你这吃白饭的蓝色大肥鱼」原图",
+  "images/9.20-1-02.gif": "大肥鱼动态图",
+  "images/9.20-1-03.jpg": "二次元鱼娘回复配图",
+  "images/9.20-1-04.jpg": "原作者B站主页截图",
+  "images/9.20-2-01.jpg": "提示词逆天 · 楼主原图",
+  "images/9.20-2-02.jpg": "「我和你很聊得来，你简直不像碳基生物」",
+  "images/9.20-2-03.jpg": "三楼梗图",
+  "images/9.20-2-04.jpg": "四楼梗图",
+  "images/9.20-3-01.jpg": "楼主库存图",
+  "images/9.20-3-02.jpg": "二楼「我的评价是」配图",
+  "images/9.20-3-03.jpg": "「鲸不是鱼」配图",
+  "images/9.20-1-05.jpg": "「这么强」表情包"
+};
+
+/* ==================================================================
+   贴吧小表情（滑稽 / 阴险 / 怒 …）
+   ------------------------------------------------------------------
+   贴吧的小表情是「图片」不是文字，所以从贴吧复制是复制不到的 —— 只能写它的名字。
+
+   两种写法都支持（推荐第一种，那是贴吧自己的写法）：
+       ["二楼", "「这不比你那破鱼强#(滑稽)」"]     ← 贴吧原生写法
+       ["二楼", "「这不比你那破鱼强[滑稽]」"]     ← 方括号写法，也行
+       ["二楼", "「看图#(tieba62)」"]              ← 直接写编号（62~124 那些新表情）
+
+   图片从哪来？（按这个顺序找，找到就用）
+     1. 本地 dfy/emoticons/滑稽.gif（或 .png）  —— 有就用，可以离线
+     2. 贴吧官方表情包的 CDN（见下面 TB_EMOJI_CDNS）
+        "滑稽" 对应第 25 号 → .../image_emoticon25.png
+
+   全都没有时会原样显示成 #(滑稽) 这样的文字，不会破图、不会报错。
+
+   想看图挑表情：打开 dfy/表情助手.html
+   ================================================================== */
+const TB_EMOJI_DIR = "emoticons/";              // 本地表情目录（有的话优先用它，可离线）
+const TB_EMOJI_EXT = ["gif", "png"];            // 本地文件依次尝试的扩展名（想支持 jpg/webp 自己加）
+
+/* 贴吧官方表情包：有人把全部 124 个备份到了 jsDelivr，联网时直接用，不需要你存任何图。
+   国内 jsDelivr 有时会抽风，所以列了三个镜像，按顺序试，哪个通用哪个。
+   全都取不到时会自动退回显示成 [名字] 文字，不会破图。 */
+const TB_EMOJI_CDNS = [
+  "https://cdn.jsdelivr.net/gh/microlong666/tieba_mobile_emotions/",
+  "https://fastly.jsdelivr.net/gh/microlong666/tieba_mobile_emotions/",
+  "https://gcore.jsdelivr.net/gh/microlong666/tieba_mobile_emotions/"
+];
+
+/* 贴吧经典表情的名字 → 编号（编号 N 对应 CDN 上的 image_emoticon{N}.png，1 号是 image_emoticon.png）
+   名字就是贴吧里显示的官方名字，所以写 #(滑稽) 或 [滑稽] 都能出图。 */
+const TB_EMOJI_INDEX = {
+  "呵呵": 1, "哈哈": 2, "吐舌": 3, "啊": 4, "酷": 5, "怒": 6, "开心": 7, "汗": 8, "泪": 9, "黑线": 10,
+  "鄙视": 11, "不高兴": 12, "真棒": 13, "钱": 14, "疑问": 15, "阴险": 16, "吐": 17, "咦": 18, "委屈": 19, "花心": 20,
+  "呼~": 21, "笑眼": 22, "冷": 23, "太开心": 24, "滑稽": 25, "勉强": 26, "狂汗": 27, "乖": 28, "睡觉": 29, "惊哭": 30,
+  "生气": 31, "惊讶": 32, "喷": 33, "爱心": 34, "心碎": 35, "玫瑰": 36, "礼物": 37, "彩虹": 38, "星星月亮": 39, "太阳": 40,
+  "钱币": 41, "灯泡": 42, "茶杯": 43, "蛋糕": 44, "音乐": 45, "haha": 46, "胜利": 47, "大拇指": 48, "弱": 49, "OK": 50
+  /* 51~61 贴吧没放出图；62~124 是后来的新表情，名字表没找到，
+     想用就在 dfy/表情助手.html 里看图，然后写 [tieba62] 这样的编号。 */
+};
+
+
+
+/* 想限制只有一部分名字能当表情，就在这里列出来；留空 = 上表的名字 + [tiebaN] + 本地文件都允许。
+   反正找不到图会自动退回文字，不会出错。 */
+const TB_EMOJI_WHITELIST = [];
+</script>
+
+<!-- ==================================================================== -->
+<!--  引擎                                                                -->
+<!-- ==================================================================== -->
+<script>
+/* ============================ 全局状态 ============================ */
+const STAT_MAX = { emotion: 100, logic: 100, reputation: 9999 };
+const TAG_LABEL = {
+  fadian: "发癫", cuntu: "存图", lixing: "理性",
+  duixian: "对线", weiguan: "围观", chuangzuo: "整活"
+};
+
+const state = {
+  day: 1, postIndex: 1, postsMax: 3,
+  emotion: 50, logic: 50, reputation: 0,
+  tags: {},
+  seenEndings: []
+};
+
+let undoStack = [];
+let queue = [];            // 帖子内的推进队列
+let cardMode = false;
+let cardFloorArea = null;
+let currentPost = null;
+let currentDay = 1;
+let endingShown = false;
+// 大事件闪屏：每天只在遇到第一个事件帖时闪一次
+let lastFlashDay = 0;
+// 配图占位开关：图还没补齐时可以关掉，界面更干净
+let showPlaceholders = true;
+let placeholderShown = false;              // 当前这一帖有没有配图缺失
+const PH_KEY = "dfy_v2_ph";
+
+function togglePlaceholders() {
+  showPlaceholders = !showPlaceholders;
+  try { localStorage.setItem(PH_KEY, showPlaceholders ? "1" : "0"); } catch (e) {}
+  const b = $("ph-btn");
+  if (b) b.textContent = showPlaceholders ? "配图位：显示" : "配图位：隐藏";
+  layoutCard();
+  toast(showPlaceholders ? "已显示配图占位（对照补图清单补图）" : "已隐藏配图占位");
+  if (cardMode && currentPost) playPost(currentPost, true);
+}
+
+const $ = id => document.getElementById(id);
+const SAVE_KEY = "dfy_v2_save";
+
+/* ============================ 存档 ============================ */
+function saveGame(silent) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      state, day: state.day, undoStack: undoStack.slice(-8),
+      savedAt: Date.now()
+    }));
+    if (!silent) toast("已自动存档");
+  } catch (e) { /* file:// 下可能被禁用，忽略 */ }
+}
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d || !d.state) return null;
+    return d;
+  } catch (e) { return null; }
+}
+function clearSave() {
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+}
+function endingKey() { return "dfy_v2_endings"; }
+function loadEndings() {
+  try { return JSON.parse(localStorage.getItem(endingKey()) || "[]"); } catch (e) { return []; }
+}
+function saveEnding(id) {
+  try {
+    const a = loadEndings();
+    if (!a.includes(id)) { a.push(id); localStorage.setItem(endingKey(), JSON.stringify(a)); }
+  } catch (e) {}
+  if (!state.seenEndings.includes(id)) state.seenEndings.push(id);
+}
+
+/* ============================ 工具 ============================ */
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  $("game").appendChild(t);
+  setTimeout(() => t.remove(), 1600);
+}
+
+function calcDate(day) {
+  if (day <= 11) return `9月${day + 19}日`;
+  return `10月${day - 11}日`;
+}
+
+
+function updateUI() {
+  $("ui-date").textContent = calcDate(state.day);
+  $("ui-post").textContent = `${state.postIndex}/${state.postsMax}`;
+  $("ui-logic").textContent = state.logic;
+  $("ui-emotion").textContent = state.emotion;
+  $("ui-reputation").textContent = state.reputation;
+}
+
+function pulseStat(stat, dir) {
+  const el = $(`ui-${stat}-item`);
+  if (!el) return;
+  el.classList.add(dir > 0 ? "up" : "down");
+  setTimeout(() => el.classList.remove("up", "down"), 700);
+}
+
+function floatText(value, stat) {
+  const el = document.createElement("div");
+  el.className = "float-text";
+  const names = { emotion: "心情", logic: "理智", reputation: "经验" };
+  el.textContent = `${names[stat] || ""} ${value > 0 ? "+" : ""}${value}`;
+  el.style.color = value > 0 ? "#4aff8a" : "#ff6a6a";
+  const anchor = $(`ui-${stat}-item`);
+  const box = $("game").getBoundingClientRect();
+  if (anchor) {
+    const r = anchor.getBoundingClientRect();
+    el.style.left = (r.left - box.left) + "px";
+    el.style.top = (r.top - box.top + 16) + "px";
+  } else {
+    el.style.left = "50%"; el.style.top = "80px";
+  }
+  $("game").appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+/* 数值缩放：帖子里的增减是按「叙事强度」写的，这里统一折算成实际点数，
+   避免 30 多个帖子累积下来心情/理智一路顶到 100、所有结局都收敛成同一个 */
+const STAT_SCALE = { emotion: 0.42, logic: 0.40, reputation: 0.62 };
+
+function scaleDelta(stat, value) {
+  // 负向不缩放：在吧里被骂是真的疼，快乐才是慢慢涨的
+  if (value < 0) return Math.max(-12, Math.round(value));
+  const k = STAT_SCALE[stat] === undefined ? 0.5 : STAT_SCALE[stat];
+  return Math.max(1, Math.round(value * k));
+}
+
+function changeStat(stat, value) {
+  if (!value) return;
+  const delta = scaleDelta(stat, value);
+  const max = STAT_MAX[stat] !== undefined ? STAT_MAX[stat] : 100;
+  state[stat] = Math.max(0, Math.min(max, state[stat] + delta));
+  updateUI();
+  pulseStat(stat, delta);
+  floatText(delta, stat);
+}
+
+function addTag(tag) {
+  if (!tag) return;
+  state.tags[tag] = (state.tags[tag] || 0) + 1;
+}
+
+/* ============================ 图片渲染 ============================ */
+function normalizeImage(item, postImages) {
+  if (item === null || item === undefined) return null;
+  if (typeof item === "number") return normalizeImage(postImages[item], postImages);
+  if (typeof item === "string") return { src: item, desc: IMAGE_NOTES[item] || "", url: "" };
+  return { src: item.src || "", desc: item.desc || "", url: item.url || "", file: item.file || "" };
+}
+
+/* ============================ 图片存放位置 ============================
+   图片名支持三种命名法，位置也有几种放法，引擎都会按顺序自动找，
+   找到就用 —— 所以代码里的路径和文件的实际位置不用一一对应。
+
+   命名法 A（现在用的）：日期-帖号-图号（图号补零两位）
+       9.27-1-07.jpg   = 9月27日 · 帖1 · 第7张
+       10.1-2-01.jpg   = 10月1日 · 帖2 · 第1张
+       ↑ 这样命名，字符串排序就是正确顺序：1-07 < 1-14 < 2-01
+
+   命名法 B（旧名，还认）：dayNN_tRC         day01_t11.jpg
+   命名法 C（更旧，还认）：日期-帖号图号      924-17.jpg
+
+   放法（三种命名都适用）：
+     1. images/9.24-1-07.jpg          ← 全部堆在 images/ 根目录
+     2. images/924/924-1-07.jpg      ← 按日期分文件夹（推荐，一眼看哪天缺图）
+     3. images/924/1-07.jpg          ← 分文件夹 + 短名
+==================================================================== */
+function imageCandidates(src) {
+  const fallback = [src];        // 兜底：原样路径（这几种情况直接返回它）
+  const m = /^(.*\/)?([^\/]+)$/.exec(src);
+  if (!m) return fallback;
+  const dir = m[1] || "";                  // 例如 "images/"
+  const base = m[2];                       // 例如 "920-11.jpg"
+  const dot = base.lastIndexOf(".");
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  const ext = dot > 0 ? base.slice(dot) : "";
+
+  // 从文件名里取出「分组键」和「短名」
+  let group = null, short = null;
+  let g = /^(day\d{2})_(.+)$/.exec(stem);              // 最早那批：day01_t11
+  if (g) { group = g[1]; short = g[2]; }
+  else {
+    g = /^([0-9]{1,2}\.[0-9]{1,2})-(.+)$/.exec(stem);  // 现在用的：9.27-1-01 → 分组键 9.27
+    if (g) { group = g[1]; short = g[2]; }
+    else {
+      g = /^([0-9]{3,4})-(.+)$/.exec(stem);            // 旧版：927-1-01
+      if (g) { group = g[1]; short = g[2]; }
+    }
+  }
+  if (!group) return fallback;
+
+  /* 顺序很重要：所有图片实际都放在「日期文件夹」里，
+     所以先试它（第一次就命中），原始写法放最后兜底。
+     这样不再依赖 onerror 回退 —— 图能立刻显示，也不会出现"图裂"。 */
+  const list = [dir + group + "/" + base];                 // ① 日期文件夹 + 原名（实际位置）
+  if (short) list.push(dir + group + "/" + short + ext);    // ② 日期文件夹 + 短名
+  list.push(src);                                          // ③ 原始写法（兜底）
+
+  /* 扩展名写错也能救回来：同一个名换其它扩展名再试一轮
+     （比如写 images/9.26-3-02.jpg，但文件其实是 9.26-3-02.gif） */
+  const IMG_EXT = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+  const extra = [];
+  list.forEach(p => {
+    const d2 = p.lastIndexOf(".");
+    if (d2 < 0) return;
+    const stem2 = p.slice(0, d2), e2 = p.slice(d2).toLowerCase();
+    if (IMG_EXT.indexOf(e2) < 0) return;
+    IMG_EXT.forEach(o => { if (o !== e2) extra.push(stem2 + o); });
+  });
+  return list.concat(extra);
+}
+
+/* 某张图失败了就换下一个候选位置；全都没有才显示占位框 */
+function imageNext(im, info) {
+  let cands = [];
+  try { cands = JSON.parse(decodeURIComponent(im.getAttribute("data-src-cands") || "[]")); } catch (e) {}
+  const i = parseInt(im.getAttribute("data-src-i") || "0", 10) + 1;
+  if (i < cands.length) {
+    im.setAttribute("data-src-i", i);
+    im.src = cands[i];
+    return;
+  }
+  if (!showPlaceholders) { if (im.parentNode) im.parentNode.removeChild(im); return; }
+  const ph = makePlaceholder(Object.assign({}, info, { missing: true, tried: cands }));
+  if (im.parentNode) im.parentNode.replaceChild(ph, im);
+}
+
+function renderImageInto(parent, item, postImages, opts) {
+  const info = normalizeImage(item, postImages);
+  if (!info) return;
+  const o = opts || {};
+  if (!info.src) {
+    if (showPlaceholders) parent.appendChild(makePlaceholder(info));
+    return;
+  }
+  const im = document.createElement("img");
+  im.className = o.wrap ? "" : "floor-img";
+  im.alt = info.desc || "";
+  const cands = imageCandidates(info.src);
+  im.setAttribute("data-src-cands", encodeURIComponent(JSON.stringify(cands)));
+  im.setAttribute("data-src-i", "0");
+  im.src = cands[0];
+  im.onerror = function () { imageNext(im, info); };
+  im.onclick = function (ev) { ev.stopPropagation(); openLightbox(im.src); };
+  parent.appendChild(im);
+}
+
+function makePlaceholder(info) {
+  placeholderShown = true;                 // 这一帖有配图缺失 → 顶栏的「配图位」按钮要露出来
+  const d = document.createElement("div");
+  d.className = "img-placeholder";
+  const title = info.missing ? "配图缺失（可后补）" : "配图待补";
+  const tried = (info.tried && info.tried.length) ? info.tried : (info.src ? [info.src] : []);
+  d.innerHTML =
+    '<div class="ph-icon">📷</div>' +
+    '<div class="ph-title">' + title + '</div>' +
+    (info.desc ? '<div class="ph-desc">' + info.desc + '</div>' : "") +
+    (tried.length ? '<div class="ph-path">放到下面任意一个位置都行：<br>' + tried.join("<br>") + '</div>' : "") +
+    (info.url ? '<div class="ph-link">查看原帖图：' + info.url + '</div>' : "");
+  return d;
+}
+
+function openLightbox(src) {
+  const box = $("lightbox");
+  const img = $("lightbox-img");
+  img.onclick = function (ev) { ev.stopPropagation(); toggleLightboxZoom(); };
+  img.src = src;
+  box.classList.remove("actual");
+  box.classList.add("show");
+  /* 提示条 */
+  let hint = box.querySelector(".lb-hint");
+  if (!hint) {
+    hint = document.createElement("div");
+    hint.className = "lb-hint";
+    box.appendChild(hint);
+  }
+  hint.textContent = "点图切换 原尺寸 / 适应屏幕 · 点背景或按 Esc 关闭";
+}
+function toggleLightboxZoom() {
+  const box = $("lightbox");
+  box.classList.toggle("actual");
+  const hint = box.querySelector(".lb-hint");
+  if (hint) hint.textContent = box.classList.contains("actual")
+    ? "原尺寸（1:1）· 拖动看图 · 再点一下回到适应屏幕"
+    : "点图切换 原尺寸 / 适应屏幕 · 点背景或按 Esc 关闭";
+}
+function closeLightbox() {
+  const box = $("lightbox");
+  box.classList.remove("show", "actual");
+}
+
+/* ============================ 贴吧小表情 ============================
+   台词里写 [滑稽]，这里把它变成一张小图。找不到图就原样显示文字，不会破图。
+=================================================================== */
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function emojiAllowed(name) {
+  if (!Array.isArray(TB_EMOJI_WHITELIST) || TB_EMOJI_WHITELIST.length === 0) return true;
+  return TB_EMOJI_WHITELIST.indexOf(name) >= 0;
+}
+
+/* 编号 N 在 CDN 上的文件名（1 号是 image_emoticon.png，其余是 image_emoticon{N}.png） */
+function tbEmojiFile(n) {
+  return n === 1 ? "image_emoticon.png" : "image_emoticon" + n + ".png";
+}
+
+/* 一个表情名 → 按优先级排好的候选图片地址
+   顺序：本地 emoticons/名字.扩展名  →  贴吧编号图（CDN 三个镜像） */
+function tbEmojiCandidates(name) {
+  const out = [];
+
+  TB_EMOJI_EXT.forEach(e => out.push(TB_EMOJI_DIR + name + "." + e));
+
+  let n = null;
+  const m = /^tieba(\d+)$/i.exec(name);
+  if (m) {
+    const v = parseInt(m[1], 10);
+    if (v >= 1 && v <= 124) n = v;
+  } else if (Object.prototype.hasOwnProperty.call(TB_EMOJI_INDEX, name)) {
+    n = TB_EMOJI_INDEX[name];
+  }
+  if (n) {
+    const f = tbEmojiFile(n);
+    TB_EMOJI_EXT.forEach(e => out.push(TB_EMOJI_DIR + n + "." + e));
+    TB_EMOJI_EXT.forEach(e => out.push(TB_EMOJI_DIR + "image_emoticon" + (n === 1 ? "" : n) + "." + e));
+    (TB_EMOJI_CDNS || []).forEach(cdn => out.push(cdn + f));
+  }
+  return out;
+}
+
+/* 一个表情名 → 一段 <img>。找不到图时由 emojiNext 兜底成文字，不会破图。 */
+function tbEmojiTag(name, fallback) {
+  if (!emojiAllowed(name)) return fallback;
+  const list = tbEmojiCandidates(name);
+  if (!list.length) return fallback;
+  return '<img class="tb-emoji" alt="' + name + '" title="贴吧表情：' + name + '"' +
+    ' data-emoji="' + name + '" data-emoji-raw="' + escapeHtml(fallback) + '" data-emoji-i="0" style="display:none"' +
+    ' src="' + list[0] + '"' +
+    ' onload="this.style.display=\'inline-block\'"' +
+    ' onerror="emojiNext(this)">';
+}
+
+/* 把纯文本转成可以放进 innerHTML 的富文本：先转义，再把表情写法换成图。
+   支持两种写法：#(滑稽)（贴吧原生写法）和 [滑稽]（方括号写法）。 */
+function richText(text) {
+  let html = escapeHtml(text);
+  html = html.replace(/#\(([^()\s]{1,12})\)/g, function (whole, name) {
+    return tbEmojiTag(name, whole);
+  });
+  html = html.replace(/\[([^\[\]\s]{1,12})\]/g, function (whole, name) {
+    return tbEmojiTag(name, whole);
+  });
+  return html;
+}
+
+/* 写入富文本（台词/标题/旁白都用它，这样里面就能放表情） */
+function setRichText(el, text) {
+  if (!el) return;
+  el.innerHTML = richText(text === null || text === undefined ? "" : text);
+}
+
+/* 图取不到时：依次换本地扩展名 → 换 CDN 镜像；全失败就退回文字 */
+function emojiNext(img) {
+  const name = img.getAttribute("data-emoji") || "";
+  const list = tbEmojiCandidates(name);
+  let i = parseInt(img.getAttribute("data-emoji-i") || "0", 10) + 1;
+  if (i < list.length) {
+    img.setAttribute("data-emoji-i", i);
+    img.src = list[i];
+    return;
+  }
+  // 彻底找不到：换成一个和正文同样大小的文字标签
+  // 注意：要还原成作者当初写的原样（#(滑稽) 就还 #(滑稽)，别变成 [滑稽]）
+  const raw = img.getAttribute("data-emoji-raw") || ("[" + name + "]");
+  const span = document.createElement("span");
+  span.className = "tb-emoji-missing";
+  span.textContent = raw;
+  span.title = "没找到表情图：把 " + TB_EMOJI_DIR + name + ".gif（或 .png）存进去就能显示了";
+  if (img.parentNode) img.parentNode.replaceChild(span, img);
+}
+
+/* ============================ 帖子渲染 ============================ */
+function appendLine(speaker, text, image, postImages, isSelf, isOp) {
+  const div = document.createElement("div");
+  const cls = ["floor-line"];
+  if (isSelf) cls.push("self");
+  if (isOp) cls.push("op");
+  div.className = cls.join(" ");
+
+  const head = document.createElement("div");
+  head.className = "floor-head";
+  const sp = document.createElement("span");
+  sp.className = "floor-speaker";
+  sp.textContent = speaker;
+  head.appendChild(sp);
+  div.appendChild(head);
+
+  const body = document.createElement("div");
+  body.className = "floor-text";
+  setRichText(body, text);
+  if (!text) body.style.display = "none";     // 只发图不配文字时，不要留一个空行
+  div.appendChild(body);
+
+  const acts = document.createElement("div");
+  acts.className = "floor-acts";
+  acts.innerHTML = "<span>👍 " + (Math.floor(Math.random() * 40) + 1) + "</span><span>💬 回复</span>";
+  div.appendChild(acts);
+
+  appendFloorImages(div, image, postImages);
+  cardFloorArea.appendChild(div);
+  cardFloorArea.scrollTop = cardFloorArea.scrollHeight;
+}
+
+/* 楼层配图：image 可以是单个（字符串/对象/下标），也可以是一个数组。
+   数组就依次渲染多张 —— 所以 { speaker:"五楼", images:[a, b] } 这种写法也能用。 */
+function appendFloorImages(container, image, postImages) {
+  if (image === null || image === undefined) return;
+  const list = Array.isArray(image) ? image : [image];
+  list.forEach(function (it) {
+    if (it === null || it === undefined) return;
+    renderImageInto(container, it, postImages, {});
+  });
+}
+
+function appendImageWrap(items, postImages) {
+  const wrap = document.createElement("div");
+  wrap.className = "floor-image-wrap";
+  items.forEach(it => renderImageInto(wrap, it, postImages, { wrap: true }));
+  cardFloorArea.appendChild(wrap);
+  cardFloorArea.scrollTop = cardFloorArea.scrollHeight;
+}
+
+function setHint(text) {
+  const h = $("post-hint");
+  if (!text) { h.style.display = "none"; return; }
+  h.style.display = "block";
+  h.textContent = text;
+}
+
+/* ============================ 「点击跳转」链接卡片 ============================
+   台词写成这样就会渲染成一个能点的卡片：
+
+     { speaker: "你", text: "去看看（点击跳转网站）", url: "https://xxx.com" }
+
+   可选：target（默认 _blank 新标签页）、label（卡片上显示的字）
+   点它只负责打开网址，不会翻页；再点卡片别处继续剧情。
+============================================================================ */
+function appendLinkCard(step) {
+  const div = document.createElement("div");
+  div.className = "floor-line" + (step.speaker === "你" ? " self" : "") + (step.speaker === "楼主" ? " op" : "");
+  if (step.speaker) {
+    const head = document.createElement("div");
+    head.className = "floor-head";
+    const sp = document.createElement("div");
+    sp.className = "floor-speaker";
+    sp.textContent = step.speaker;
+    head.appendChild(sp);
+    div.appendChild(head);
+  }
+  const a = document.createElement("a");
+  a.className = "link-card";
+  a.href = step.url;
+  a.target = step.target || "_blank";
+  a.rel = "noopener noreferrer";
+  const icon = document.createElement("span"); icon.className = "link-icon"; icon.textContent = "🔗";
+  const txt = document.createElement("span"); txt.className = "link-text"; txt.textContent = step.label || step.text || "点这里打开";
+  const url = document.createElement("span"); url.className = "link-url"; url.textContent = step.url;
+  const go = document.createElement("span"); go.className = "link-go"; go.textContent = "打开 →";
+  a.appendChild(icon); a.appendChild(txt); a.appendChild(url); a.appendChild(go);
+  // 点链接不要触碰到「点卡片翻页」
+  a.onclick = function (ev) { ev.stopPropagation(); };
+  div.appendChild(a);
+  if (step.note) {
+    const n = document.createElement("div");
+    n.className = "floor-acts";
+    const s = document.createElement("span");
+    s.textContent = step.note;
+    n.appendChild(s);
+    div.appendChild(n);
+  }
+  cardFloorArea.appendChild(div);
+  cardFloorArea.scrollTop = cardFloorArea.scrollHeight;
+}
+
+/* 状态栏高度是会变的（换行、调试按钮出现、撤回按钮上的数字变长……），
+   帖子卡片如果写死 top:42px，就会被状态栏压住一部分。
+   这里每次都按状态栏的真实高度重新算一遍。 */
+function layoutCard() {
+  const bar = $("status-bar");
+  const card = $("post-card");
+  if (!bar || !card) return;
+  const h = bar.offsetHeight || bar.clientHeight || 42;
+  card.style.top = h + "px";
+  /* 「配图位」按钮：只有这一帖真有缺图时才露出来，图都齐了就收起来，页面干净 */
+  const phBtn = $("ph-btn");
+  if (phBtn) {
+    const hasMissing = (card.innerHTML || "").indexOf("img-placeholder") >= 0;
+    phBtn.style.display = hasMissing ? "" : "none";
+  }
+}
+window.addEventListener("resize", layoutCard);
+
+/* ============================ 队列推进 ============================ */
+function advance() {
+  if (!queue.length) return;
+  const step = queue.shift();
+  if (step.type === "line") {
+    appendLine(step.speaker, step.text, step.image, step.postImages, step.speaker === "你", step.speaker === "楼主");
+  } else if (step.type === "link") {
+    appendLinkCard(step);
+  } else if (step.type === "images") {
+    appendImageWrap(step.items, step.postImages);
+  } else if (step.type === "choices") {
+    renderChoices(step.choices, step.post);
+    return;               // 选项步不自动推进
+  } else if (step.type === "nextpost") {
+    setHint("▼ 点击继续");
+    renderNextPostButton();
+    return;
+  }
+  if (queue.length === 0) setHint(null);
+}
+
+function cardClick() {
+  if (!queue.length) return;
+  advance();
+}
+
+/* ============================ 选项渲染 ============================ */
+function renderChoices(choices, post) {
+  const wrap = document.createElement("div");
+  wrap.className = "post-choices";
+  wrap.dataset.role = "choices";
+
+  choices.forEach((c, i) => {
+    const btn = document.createElement("button");
+    btn.className = "post-choice-btn";
+    const tag = c.tag && TAG_LABEL[c.tag] ? `<span class="choice-tag">${TAG_LABEL[c.tag]}</span>` : "";
+    btn.innerHTML = `${i + 1}. ${richText(c.text)}${tag}`;
+    btn.onclick = ev => { ev.stopPropagation(); pickChoice(c, post, wrap); };
+    wrap.appendChild(btn);
+  });
+
+  const exp = document.createElement("button");
+  exp.className = "post-choice-btn exp";
+  exp.textContent = "经验+3";
+  exp.onclick = ev => {
+    ev.stopPropagation();
+    if (exp.disabled) return;
+    exp.disabled = true;
+    exp.textContent = "经验+3  ✓ 已水";
+    changeStat("reputation", 3);
+    appendLine("旁白", "经验加3", null, post.images, false, false);
+    renderNextPostButton();          // 水完这一楼就可以直接去下一个帖子
+    cardFloorArea.scrollTop = cardFloorArea.scrollHeight;
+  };
+  wrap.appendChild(exp);
+
+  cardFloorArea.appendChild(wrap);
+  cardFloorArea.scrollTop = cardFloorArea.scrollHeight;
+  setHint(null);
+}
+
+function pickChoice(choice, post, wrapEl) {
+  pushSnapshot(choice);
+  if (wrapEl) wrapEl.remove();
+  // 如果刚才点过「经验+3」，先把那个「下一个帖子」按钮撤掉，
+  // 因为选项自己的台词后面会重新给出一个
+  const staleNext = cardFloorArea.querySelector('[data-role="nextpost"]');
+  if (staleNext) staleNext.remove();
+
+  addTag(choice.tag);
+  if (choice.stats) {
+    Object.keys(choice.stats).forEach(k => changeStat(k, choice.stats[k]));
+  }
+
+  const lines = (choice.lines || []).map(l => {
+    // 容错零：空行（null / undefined）直接跳过 —— 比如写了 lines: [] 或漏一项
+    if (l === null || l === undefined) return null;
+    if (Array.isArray(l)) {
+      // 容错一：整行只写了一个图片路径（["images/xx.jpg"]）= 只发一张图，说话人算「你」
+      if (l.length === 1 && typeof l[0] === "string" && /^images\//i.test(l[0].trim())) {
+        return { type: "line", speaker: "你", text: "", image: l[0].trim(), postImages: post.images };
+      }
+      // 容错二：只写两项、且第二项是图片路径（["你", "images/xx.jpg"]）= 只发图，文字留空
+      if (l[2] === undefined && typeof l[1] === "string" && /^images\//i.test(l[1].trim())) {
+        return { type: "line", speaker: l[0], text: "", image: l[1].trim(), postImages: post.images };
+      }
+      return { type: "line", speaker: l[0], text: l[1], image: l[2], postImages: post.images };
+    }
+    // 跳转写法：{ text, url } → 渲染成能点的链接卡片（新标签页打开）
+    if (l.url) {
+      return {
+        type: "link", speaker: l.speaker || "你", text: l.text, label: l.label,
+        url: l.url, target: l.target, note: l.note, postImages: post.images
+      };
+    }
+    // 完整写法：{ speaker, text, image } 配一张图；{ speaker, text, images: [...] } 配多张图
+    return {
+      type: "line", speaker: l.speaker, text: l.text,
+      image: (Array.isArray(l.images) && l.images.length) ? l.images : l.image,
+      postImages: post.images
+    };
+  });
+
+  queue = lines.filter(Boolean).concat([{ type: "nextpost" }]);
+  advance();
+  saveGame(true);
+}
+
+function renderNextPostButton() {
+  const old = cardFloorArea.querySelector('[data-role="nextpost"]');
+  if (old) old.remove();
+  const wrap = document.createElement("div");
+  wrap.className = "post-choices";
+  wrap.dataset.role = "nextpost";
+  const btn = document.createElement("button");
+  btn.className = "post-choice-btn next";
+  btn.textContent = state.postIndex >= state.postsMax ? "今天刷完了 →" : "下一个帖子 →";
+  btn.onclick = ev => { ev.stopPropagation(); wrap.remove(); finishPost(); };
+  wrap.appendChild(btn);
+  cardFloorArea.appendChild(wrap);
+  cardFloorArea.scrollTop = cardFloorArea.scrollHeight;
+}
+
+/* ============================ 撤回 ============================ */
+function pushSnapshot(choice) {
+  undoStack.push({
+    day: state.day, postIndex: state.postIndex,
+    emotion: state.emotion, logic: state.logic, reputation: state.reputation,
+    tags: JSON.parse(JSON.stringify(state.tags)),
+    choiceText: choice ? choice.text : ""
+  });
+  if (undoStack.length > 60) undoStack.shift();
+  updateUndoBtn();
+}
+
+function undoChoice() {
+  if (!undoStack.length) return;
+  const snap = undoStack.pop();
+  state.day = snap.day; state.postIndex = snap.postIndex;
+  state.emotion = snap.emotion; state.logic = snap.logic; state.reputation = snap.reputation;
+  state.tags = snap.tags;
+  updateUI();
+  updateUndoBtn();
+  toast("已撤回：" + (snap.choiceText || "上一步"));
+  // 重放当前帖子，直接跳到选项
+  const post = postsData[state.day] && postsData[state.day][state.postIndex];
+  if (post) playPost(post, true);
+  saveGame(true);
+}
+
+function updateUndoBtn() {
+  const btn = $("undo-btn");
+  if (!btn) return;
+  btn.disabled = undoStack.length === 0;
+  btn.textContent = undoStack.length > 0 ? `↩ 撤回 (${undoStack.length})` : "↩ 撤回";
+  layoutCard();
+}
+
+/* ============================ 开场白 ============================ */
+function getOpeningLine() {
+  const e = state.emotion, l = state.logic;
+  const meta = DAYS_META[state.day] || {};
+  if (meta.intro) return meta.intro;
+
+  let pool = [];
+  if (e >= 60 && l >= 60) {
+    pool = [
+      "今天你心情不错，脑子也格外清醒。你打开大肥鱼社区。",
+      "状态拉满的一天。你哼着小曲打开大肥鱼社区，准备巡视一下自己的赛博鱼塘。",
+      "吃完饭后，准备去大肥鱼社区来一点梁子笑话娱乐一下，心情还不错。"
+    ];
+  } else if (e >= 60 && l < 60) {
+    pool = [
+      "今天你心情很好，准备来大肥鱼社区看点大肥鱼笑话。",
+      "心情不错的你照例打开大肥鱼社区，准备收获一点今日份的快乐。",
+      "今天整个人都轻飘飘的。你点开大肥鱼社区，只想找点乐子。"
+    ];
+  } else if (e >= 40 && l >= 60) {
+    pool = [
+      "今天你心情平平，但脑子很清醒。你打开大肥鱼社区，想看看今天有什么值得分析的。",
+      "没什么特别的情绪，但你的逻辑在线。你点进大肥鱼社区，准备理性围观。"
+    ];
+  } else if (e >= 40) {
+    pool = [
+      "今天你心情平平，像往常一样打开了大肥鱼社区。",
+      "没什么特别的一天。你习惯性地刷开大肥鱼社区，看看大家在聊什么。"
+    ];
+  } else if (l >= 60) {
+    pool = [
+      "今天你心情有点差，但脑子还在线。你打开大肥鱼社区，准备用逻辑给自己找点事做。",
+      "烦躁的一天。你点开大肥鱼社区，试图用理性压住情绪。"
+    ];
+  } else {
+    pool = [
+      "今天你心情有点差，但你还是打开了大肥鱼社区，希望大肥鱼能让你笑一笑。",
+      "烦躁的一天。你点开大肥鱼社区，试图用赛博笑话麻痹自己。",
+      "今天不太顺。你机械地刷开大肥鱼社区，只想看点让人开心的东西。"
+    ];
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/* ============================ 流程 ============================ */
+function createBubbles() {
+  const scene = $("scene");
+  scene.innerHTML = "";
+  for (let i = 0; i < 14; i++) {
+    const b = document.createElement("div");
+    b.className = "bubble";
+    const size = Math.random() * 36 + 12;
+    b.style.width = size + "px";
+    b.style.height = size + "px";
+    b.style.left = Math.random() * 100 + "%";
+    b.style.bottom = "-60px";
+    b.style.animationDuration = (Math.random() * 7 + 6) + "s";
+    b.style.animationDelay = Math.random() * 8 + "s";
+    scene.appendChild(b);
+  }
+}
+
+function showDialogueBox() {
+  cardMode = false; cardFloorArea = null; currentPost = null;
+  $("post-card").style.display = "none";
+  $("dialogue-box").style.display = "flex";
+}
+
+function showDialogue(speaker, text) {
+  const dlg = $("dialogue-text");
+  $("speaker").textContent = speaker;
+  setRichText(dlg, text);
+  dlg.style.animation = "none";
+  void dlg.offsetWidth;
+  dlg.style.animation = "";
+  $("choices").innerHTML = "";
+}
+
+function showChoices(choices) {
+  const container = $("choices");
+  container.innerHTML = "";
+  choices.forEach((c, i) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.innerHTML = richText((i + 1) + ". " + c.text);
+    btn.onclick = () => { container.innerHTML = ""; c.action(); };
+    container.appendChild(btn);
+  });
+}
+
+function startGame() {
+  clearSave();
+  undoStack = []; updateUndoBtn();
+  state.day = 1; state.postIndex = 1;
+  state.emotion = 50; state.logic = 50; state.reputation = 0;
+  state.tags = {}; endingShown = false; lastFlashDay = 0;
+  $("screen-title").classList.add("hidden");
+  $("status-bar").style.display = "flex";
+  layoutCard();
+  $("scene").style.display = "block";
+  createBubbles();
+  updateUI();
+
+  const dt = $("day-transition");
+  dt.classList.remove("event");
+  $("dt-label").textContent = "故事开始于";
+  $("dt-num").textContent = "9月20日";
+  $("dt-phase").textContent = "大肥鱼社区 · 主线";
+  dt.classList.add("show");
+  setTimeout(() => {
+    dt.classList.remove("show");
+    setTimeout(startDay, 500);
+  }, 2200);
+}
+
+function continueGame() {
+  const d = loadGame();
+  if (!d) { startGame(); return; }
+  Object.assign(state, d.state);
+  undoStack = d.undoStack || [];
+  endingShown = false;
+  $("screen-title").classList.add("hidden");
+  $("status-bar").style.display = "flex";
+  layoutCard();
+  $("scene").style.display = "block";
+  createBubbles();
+  updateUI();
+  updateUndoBtn();
+  startDay(true);
+}
+
+function startDay(resumed) {
+  state.postIndex = 1;
+  // 每天开始，心情与理智向中性回归一点，避免一路拉满
+  ["emotion", "logic"].forEach(k => {
+    state[k] = Math.max(0, Math.min(100, Math.round(state[k] + (50 - state[k]) * 0.16)));
+  });
+  updateUI();
+  const meta = DAYS_META[state.day] || {};
+  const isEvent = !!meta.event;
+  const dt = $("day-transition");
+  dt.classList.toggle("event", isEvent);
+  $("dt-label").textContent = "DAY " + state.day;
+  $("dt-num").textContent = calcDate(state.day);
+  $("dt-phase").textContent = meta.phase || "白天";
+  dt.classList.add("show");
+  setHint(null);
+  saveGame(true);
+
+  setTimeout(() => {
+    dt.classList.remove("show");
+    setTimeout(() => {
+      showDialogueBox();
+      showDialogue("旁白", getOpeningLine());
+      showChoices([{ text: "进入社区 →", action: () => runPost() }]);
+    }, 400);
+  }, isEvent ? 2000 : 1400);
+}
+
+function runPost() {
+  if (state.postIndex > state.postsMax) {
+    /* 最后一天刷完 → 不「结束今天」，直接进大肥鱼谈心 */
+    const maxDay = Object.keys(DAYS_META).reduce((a, b) => Math.max(a, Number(b)), 1);
+    if (state.day >= maxDay) { startFinale(); return; }
+    showDialogueBox();
+    showDialogue("旁白", `${calcDate(state.day)}的帖子刷完了，天已经黑了。`);
+    showChoices([{ text: "结束今天", action: nextDay }]);
+    return;
+  }
+  updateUI();
+  const post = postsData[state.day] && postsData[state.day][state.postIndex];
+  if (post) playPost(post);
+  else { state.postIndex++; runPost(); }
+}
+
+function playPost(post, skipFloors) {
+  const card = $("post-card");
+  const floorArea = $("post-floor-area");
+
+  cardMode = true;
+  cardFloorArea = floorArea;
+  currentPost = post;
+  queue = [];
+  card.style.display = "flex";
+  $("dialogue-box").style.display = "none";
+  layoutCard();                      // 先按状态栏实际高度摆好卡片，避免被压住
+  card.classList.toggle("event", !!post.event);
+  // 大事件帖：当天第一次遇到时给一次全屏闪屏（撤回重放不重复闪）
+  if (post.event && !skipFloors && lastFlashDay !== state.day) {
+    lastFlashDay = state.day;
+    eventFlash("大 事 件", post.title || "");
+  }
+  floorArea.innerHTML = "";
+  setHint("▼ 点击继续");
+
+  /* 头部信息 */
+  const meta = $("post-meta");
+  meta.innerHTML =
+    (post.event ? '<span class="event-badge">🔥 大事件</span>' : "") +
+    (post.replies ? `<span class="meta-chip">💬 ${post.replies}</span>` : "") +
+    `<span class="meta-chip">${calcDate(state.day)}</span>` +
+    `<span class="meta-chip">第 ${state.postIndex}/${state.postsMax} 帖</span>`;
+  $("post-title-text").innerHTML = richText(post.title || "帖子");
+  const src = $("post-source");
+  if (post.source && post.source.url) {
+    src.innerHTML = `原帖：<a href="${post.source.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${post.source.note || post.source.url}</a>`;
+    src.style.display = "block";
+  } else if (post.source && post.source.note) {
+    src.textContent = post.source.note;
+    src.style.display = "block";
+  } else {
+    src.innerHTML = "";
+    src.style.display = "none";
+  }
+
+  /* 构建队列 */
+  const steps = [];
+  const floors = post.floors || [];
+  floors.forEach((f, i) => {
+    steps.push({
+      type: "line", speaker: f.speaker, text: f.text,
+      // 楼层配图两种写法都支持：image（单张）和 images（多张）
+      image: (Array.isArray(f.images) && f.images.length) ? f.images : f.image,
+      postImages: post.images, isOp: i === 0
+    });
+    if (i === 0 && post.images && post.images.length) {
+      steps.push({ type: "images", items: post.images, postImages: post.images });
+    }
+  });
+  if (post.readLine) steps.push({ type: "line", speaker: "旁白", text: post.readLine, postImages: post.images });
+  steps.push({ type: "choices", choices: post.choices || [], post: post });
+
+  if (skipFloors) {
+    // 撤回重放：一次性铺满，直接到选项
+    steps.forEach(s => {
+      if (s.type === "line") appendLine(s.speaker, s.text, s.image, s.postImages, s.speaker === "你", s.isOp);
+      else if (s.type === "images") appendImageWrap(s.items, s.postImages);
+    });
+    const cs = steps[steps.length - 1];
+    queue = [];
+    setHint(null);
+    renderChoices(cs.choices, cs.post);
+  } else {
+    queue = steps;
+    advance();
+  }
+
+  card.onclick = cardClick;
+}
+
+function finishPost() {
+  changeStat("emotion", 1);
+  state.postIndex++;
+  saveGame(true);
+  runPost();
+}
+
+function nextDay() {
+  state.day++;
+  const maxDay = Object.keys(DAYS_META).reduce((a, b) => Math.max(a, Number(b)), 1);
+  if (state.day > maxDay) { startFinale(); return; }   // 先看大图，再问大肥鱼   // 先回答她的问题，再进结局
+  startDay();
+}
+
+/* ============================ 大事件闪屏 ============================ */
+function eventFlash(text, sub, cb) {
+  const f = $("event-flash");
+  $("ef-text").textContent = text;
+  $("ef-sub").textContent = sub || "";
+  f.classList.add("show");
+  $("post-card").classList.add("shake");
+  setTimeout(() => $("post-card").classList.remove("shake"), 500);
+  setTimeout(() => { f.classList.remove("show"); if (cb) cb(); }, 1500);
+}
+
+/* ============================ 结局 ============================ */
+function computeEnding() {
+  for (const e of ENDINGS) {
+    if (e.condition(state)) return e;
+  }
+  return ENDINGS[ENDINGS.length - 1];
+}
+
+
+/* ============================ 和大肥鱼的问题 ============================
+   模仿 DeepSeek 网页端：问题打进输入框 → 点发送 → 「深度思考中」
+   （随机 1.4~4.6 秒）→ 「已深度思考（用时 X 秒）」→ 逐字流式输出回答。
+   想改问题或回答，改上面的 QNA。
+================================================================== */
+let qnaIndex = 0;
+let qnaBusy = false;
+let qnaTypeTimer = null;
+let qnaThinkTimer = null;
+
+function qnaEl(id) { return $(id); }
+
+/* ============================ 尾声：大图 ============================
+   9/30 最后一个选择之后：你非常生气，却找不到是谁做的这张图。
+   看完这一屏，才进「和大肥鱼的问题」。
+================================================================== */
+function startFinale() {
+  $("post-card").style.display = "none";
+  $("dialogue-box").style.display = "none";
+  $("finale-screen").classList.add("show");
+  const img = $("fin-img");
+  if (img) {
+    img.onerror = function () { this.style.display = "none"; };   // 图不在也不破版
+    img.style.display = "block";
+  }
+  const go = $("fin-go");
+  if (go) go.onclick = function () {
+    $("finale-screen").classList.remove("show");
+    startQna();
+  };
+}
+
+function startQna() {
+  if (typeof QNA === "undefined" || !QNA || !QNA.items || !QNA.items.length) { showEnding(); return; }
+  qnaIndex = 0;
+  qnaBusy = false;
+  $("post-card").style.display = "none";
+  $("dialogue-box").style.display = "none";
+  $("qna-screen").classList.add("show");
+  $("dsc-body").innerHTML = "";
+  $("dsc-send").onclick = askFish;
+  const skipBtn = $("dsc-skip");
+  if (skipBtn) skipBtn.onclick = finishQna;
+
+  /* 不预设开场白：由玩家先发言（问题会先打进输入框） */
+  typeQuestion(QNA.items[0].q);
+}
+
+/* 把问题「打」进输入框 */
+function typeQuestion(text) {
+  const box = $("dsc-typed");
+  const send = $("dsc-send");
+  box.innerHTML = "";
+  send.classList.remove("ready");
+  qnaBusy = false;
+  let i = 0;
+  if (qnaTypeTimer) { clearInterval(qnaTypeTimer); qnaTypeTimer = null; }
+  qnaTypeTimer = setInterval(() => {
+    i++;
+    box.textContent = text.slice(0, i) + "";
+    box.innerHTML = box.textContent.replace(/</g, "&lt;") + '<span class="dsc-caret"></span>';
+    scrollChat();
+    if (i >= text.length) {
+      clearInterval(qnaTypeTimer); qnaTypeTimer = null;
+      box.textContent = text;
+      send.classList.add("ready");
+      $("dsc-input").classList.add("active");
+      $("dsc-hint").textContent = "Enter 发送 · 内容就是你想问她的";
+    }
+  }, 26);
+}
+
+/* 发送 → 思考 → 流式回答 */
+function askFish() {
+  if (qnaBusy) return;
+  const send = $("dsc-send");
+  if (!send.classList.contains("ready")) return;
+  qnaBusy = true;
+  const item = QNA.items[qnaIndex];
+  send.classList.remove("ready");
+  $("dsc-input").classList.remove("active");
+  $("dsc-typed").textContent = "";
+  $("dsc-hint").textContent = "她正在想…";
+
+  /* 你的消息 */
+  addRow("me", [{ type: "text", text: item.q }]);
+
+  /* 思考条 + 计时 */
+  const aiRow = addThinkRow();
+  const thinkEl = aiRow.think;
+  const t0 = Date.now();
+  qnaThinkTimer = setInterval(() => {
+    if (thinkEl) thinkEl.innerHTML = '<span class="dt-dot">◌</span> 深度思考中… <span>' + ((Date.now() - t0) / 1000).toFixed(1) + ' 秒</span>';
+  }, 100);
+
+  const dur = 1400 + Math.floor(Math.random() * 3200);   // 随机思考时长 1.4 ~ 4.6 秒
+  setTimeout(() => {
+    if (qnaThinkTimer) { clearInterval(qnaThinkTimer); qnaThinkTimer = null; }
+    const used = ((Date.now() - t0) / 1000).toFixed(1);
+    if (thinkEl) {
+      thinkEl.className = "dsc-think done";
+      thinkEl.innerHTML = '<span class="dt-chev">▶</span><span class="dt-dot">✓</span> 已深度思考（用时 ' + used + " 秒）";
+    }
+    streamLines(aiRow.msg, item.a, 0);
+  }, dur);
+}
+
+/* 新建一行「AI + 深度思考条」，把元素引用直接返回（不靠 querySelector） */
+function addThinkRow() {
+  const row = document.createElement("div");
+  row.className = "dsc-row ai";
+  const av = document.createElement("div");
+  av.className = "dsc-avatar";
+  av.textContent = "🐋";
+  const msg = document.createElement("div");
+  msg.className = "dsc-msg";
+  const think = document.createElement("div");
+  think.className = "dsc-think";
+  think.innerHTML = '<span class="dt-dot">◌</span> 深度思考中… <span>0.0 秒</span>';
+  msg.appendChild(think);
+  row.appendChild(av);
+  row.appendChild(msg);
+  $("dsc-body").appendChild(row);
+  scrollChat();
+  return { row: row, msg: msg, think: think };
+}
+
+/* 一段一段、逐字流出来 */
+function streamLines(msgEl, lines, idx) {
+  if (idx >= lines.length) {
+    qnaBusy = false;
+    qnaIndex++;
+    if (qnaIndex >= QNA.items.length) {
+      $("dsc-hint").textContent = "问完了。";
+      const b = document.createElement("div");
+      b.className = "dsc-row ai";
+      b.innerHTML = '<div class="dsc-avatar">🐋</div><div class="dsc-msg"><div class="dsc-text">……谢谢你问这些。</div></div>';
+      $("dsc-body").appendChild(b);
+      scrollChat();
+      setTimeout(finishQna, 1400);
+    } else {
+      typeQuestion(QNA.items[qnaIndex].q);
+    }
+    return;
+  }
+  const el = document.createElement("div");
+  el.className = "dsc-text";
+  msgEl.appendChild(el);
+  const text = lines[idx];
+  let i = 0;
+  const t = setInterval(() => {
+    i += 2;
+    el.textContent = text.slice(0, i);
+    scrollChat();
+    if (i >= text.length) {
+      clearInterval(t);
+      el.textContent = text;
+      streamLines(msgEl, lines, idx + 1);
+    }
+  }, 16);
+}
+
+/* 往聊天区加一条，返回那一行 */
+function addRow(who, parts) {
+  const row = document.createElement("div");
+  row.className = "dsc-row " + who;
+  let inner = who === "ai" ? '<div class="dsc-avatar">🐋</div>' : "";
+  inner += '<div class="dsc-msg">';
+  parts.forEach(p => {
+    if (p.type === "think") {
+      inner += '<div class="dsc-think' + (p.done ? " done" : "") + '">' +
+        (p.done ? '<span class="dt-chev">▶</span><span class="dt-dot">✓</span> ' : '<span class="dt-dot">◌</span> ') +
+        p.text + "</div>";
+    } else {
+      inner += '<div class="dsc-text">' + String(p.text).replace(/\n/g, "<br>") + "</div>";
+    }
+  });
+  inner += "</div>";
+  row.innerHTML = inner;
+  $("dsc-body").appendChild(row);
+  scrollChat();
+  return row;
+}
+
+function scrollChat() {
+  const b = $("dsc-body");
+  if (b) b.scrollTop = b.scrollHeight;
+}
+
+function finishQna() {
+  if (qnaTypeTimer) { clearInterval(qnaTypeTimer); qnaTypeTimer = null; }
+  if (qnaThinkTimer) { clearInterval(qnaThinkTimer); qnaThinkTimer = null; }
+  $("qna-screen").classList.remove("show");
+  showEnding();
+}
+
+/* 页面内复位重开 —— 不用 location.reload()，
+   因为 file:// 页面如果跑在 iframe 里，浏览器会拒绝 reload 自己
+   （报 "Unsafe attempt to load URL ... 'file:' URLs are treated as unique security origins"） */
+function restartGame() {
+  try { clearSave(); } catch (e) {}
+  endingShown = false;
+  ["ending-screen", "note-screen", "qna-screen", "finale-screen", "gallery-modal", "debug-modal", "lightbox"]
+    .forEach(id => { const el = $(id); if (el) el.classList.remove("show", "actual"); });
+  const pc = $("post-card"); if (pc) pc.style.display = "none";
+  const db = $("dialogue-box"); if (db) db.style.display = "none";
+  startGame();
+}
+
+function showEnding() {
+  if (endingShown) return;
+  endingShown = true;
+  const e = computeEnding();
+  saveEnding(e.id);
+  clearSave();
+
+  $("post-card").style.display = "none";
+  $("dialogue-box").style.display = "none";
+  $("ending-screen").classList.add("show");
+
+  $("ending-icon").textContent = e.icon;
+  $("ending-rank").textContent = "RANK " + e.rank;
+  $("ending-title").textContent = e.title;
+  $("ending-desc").innerHTML = richText(e.desc).replace(/\n/g, "<br>");
+
+  const stats = [
+    { label: "心情", val: state.emotion, max: 100 },
+    { label: "理智", val: state.logic, max: 100 },
+    { label: "经验", val: state.reputation, max: 400 }
+  ];
+  $("ending-stats").innerHTML = stats.map(s => `
+    <div class="ending-stat">
+      <div class="es-label">${s.label}</div>
+      <div class="es-val">${s.val}</div>
+      <div class="stat-bar"><i style="width:${Math.min(100, s.val / s.max * 100)}%"></i></div>
+    </div>`).join("");
+
+  const tags = Object.keys(TAG_LABEL)
+    .filter(k => state.tags[k])
+    .map(k => `<span>${TAG_LABEL[k]} × ${state.tags[k]}</span>`);
+  $("ending-tags").innerHTML = tags.length ? tags.join("") : "<span>你什么都没选</span>";
+
+  /* 证书配色：每种结局一套 */
+  const cert = $("end-cert");
+  if (cert) cert.className = "end-cert end-" + (e.id || "pilao");
+}
+
+/* ============================ 作者的话（独立一页） ============================ */
+function openNote() {
+  /* 这张图和帖子里的图一样，走多候选查找（文件名写错/换目录也能找到） */
+  const noteImg = $("note-img");
+  if (noteImg && typeof imageCandidates === "function") {
+    const cands = imageCandidates(noteImg.getAttribute("data-src") || noteImg.getAttribute("src") || "");
+    let ci = 0;
+    noteImg.onerror = function () {
+      ci++;
+      if (ci < cands.length) { this.src = cands[ci]; }
+      else { this.style.display = "none"; }   // 实在找不到就藏起来，不留裂图
+    };
+    noteImg.style.display = "block";
+    noteImg.src = cands[0];
+  }
+  if (typeof AUTHOR_NOTE !== "undefined" && AUTHOR_NOTE) {
+    $("ending-author").innerHTML =
+      '<div class="ea-title">' + AUTHOR_NOTE.title + '</div>' +
+      '<div class="ea-body">' + richText(AUTHOR_NOTE.lines.join("\n")).replace(/\n/g, "<br>") + '</div>';
+  }
+  $("ending-screen").classList.remove("show");
+  $("note-screen").classList.add("show");
+}
+function closeNote() {
+  $("note-screen").classList.remove("show");
+  $("ending-screen").classList.add("show");
+}
+
+/* ============================ 图鉴 ============================ */
+function openGallery() {
+  const seen = loadEndings().concat(state.seenEndings.filter(x => !loadEndings().includes(x)));
+  const uniq = Array.from(new Set(seen));
+  $("gallery-sub").textContent = `收集进度 ${uniq.length} / ${ENDINGS.length}`;
+  $("gallery-list").innerHTML = ENDINGS.map(e => {
+    const got = uniq.includes(e.id);
+    return `<div class="gallery-item${got ? "" : " locked"}">
+      <div class="gi-icon">${got ? e.icon : "❓"}</div>
+      <div>
+        <div class="gi-title">${got ? e.title : "？？？"} <span style="font-size:11px;color:#6a8ab0">RANK ${e.rank}</span></div>
+        <div class="gi-desc">${got ? e.desc.replace(/\n/g, "<br>") : "尚未达成"}</div>
+        <div class="gi-cond">条件：${e.cond}</div>
+      </div>
+    </div>`;
+  }).join("");
+  $("gallery-modal").classList.add("show");
+}
+function closeGallery() { $("gallery-modal").classList.remove("show"); }
+
+/* ============================ 调试模式 ============================
+   开启方式：连点状态栏上的「日期」5 下（2.5 秒内）
+   关闭方式：同样连点 5 下
+   开启后：状态栏出现「🐞 调试」按钮，可跳转任意日期 / 任意帖子，可直接改数值
+=================================================================== */
+const DEBUG_KEY = "dfy_v2_debug";
+let debugMode = false;
+let dateTaps = [];
+
+function tapDate() {
+  const now = Date.now();
+  dateTaps = dateTaps.filter(t => now - t < 2500);
+  dateTaps.push(now);
+  const n = dateTaps.length;
+  if (n >= 5) {
+    dateTaps = [];
+    setDebugMode(!debugMode);
+  } else if (debugMode) {
+    openDebug();                       // 已开启时，点一下也能唤出面板
+  } else if (n >= 3) {
+    toast(`再点 ${5 - n} 下开启调试模式`);   // 给点提示，不然没人猜得到
+  }
+}
+
+function setDebugMode(on) {
+  debugMode = on;
+  try { localStorage.setItem(DEBUG_KEY, on ? "1" : "0"); } catch (e) {}
+  const btn = $("debug-btn");
+  if (btn) btn.style.display = on ? "inline-block" : "none";
+  const d = $("ui-date");
+  if (d) d.classList.toggle("debug-on", on);
+  layoutCard();                      // 调试按钮出现/消失会改变状态栏高度
+  toast(on ? "🐞 调试模式已开启" : "调试模式已关闭");
+  if (on) openDebug(); else closeDebug();
+}
+
+function openDebug() {
+  if (!debugMode) return;
+  renderDebugDays();
+  renderDebugStats();
+  renderDebugActions();
+  $("debug-modal").classList.add("show");
+}
+
+function closeDebug() { $("debug-modal").classList.remove("show"); }
+
+function renderDebugDays() {
+  const maxDay = Object.keys(DAYS_META).reduce((a, b) => Math.max(a, Number(b)), 1);
+  const parts = ['<div class="dbg-section-title">跳转到任意日期</div>'];
+  for (let d = 1; d <= maxDay; d++) {
+    const meta = DAYS_META[d] || {};
+    const cur = d === state.day ? " cur" : "";
+    const ev = meta.event ? " is-event" : "";
+    const posts = postsData[d] ? Object.keys(postsData[d]).map(Number).sort((a, b) => a - b) : [];
+    const postBtns = posts.length
+      ? posts.map(k => `<button class="dd-btn" onclick="debugJump(${d},${k})">帖${k}</button>`).join("")
+      : '<span class="dd-phase">（无内容）</span>';
+    parts.push(
+      `<div class="debug-day${cur}${ev}">` +
+        `<span class="dd-label"><b>第 ${d} 天</b> ${calcDate(d)} <span class="dd-phase">${meta.phase || ""}</span></span>` +
+        `<button class="dd-btn go" onclick="debugJump(${d},1)">进入</button>` +
+        postBtns +
+      `</div>`);
+  }
+  $("debug-days").innerHTML = parts.join("");
+}
+
+function renderDebugStats() {
+  const row = (key, label, max) =>
+    `<label class="dbg-stat">${label}` +
+      `<input type="number" min="0" max="${max}" value="${state[key]}" ` +
+      `onchange="debugSetStat('${key}', this.value)"></label>`;
+  const tags = Object.keys(TAG_LABEL)
+    .filter(k => state.tags[k])
+    .map(k => `<span>${TAG_LABEL[k]} × ${state.tags[k]}</span>`)
+    .join("") || "<span>（还没有选择倾向）</span>";
+  $("debug-stats").innerHTML =
+    '<div class="dbg-section-title">数值与倾向</div>' +
+    `<div style="display:flex;gap:10px;flex-wrap:wrap">${row("emotion", "💙 心情", 100)}${row("logic", "🧠 理智", 100)}${row("reputation", "⭐ 经验", 9999)}</div>` +
+    `<div class="dbg-tags" style="margin-top:10px">${tags}</div>`;
+}
+
+function renderDebugActions() {
+  const e = computeEnding();
+  $("debug-actions").innerHTML =
+    '<div class="dbg-section-title">快捷操作</div>' +
+    `<button class="dd-btn go" onclick="debugShowEnding()">直接看结局（当前判定：${e.title}）</button>` +
+    `<button class="dd-btn" onclick="debugResetStats()">数值重置为 50/50/0</button>` +
+    `<button class="dd-btn" onclick="debugClearTags()">清空选择倾向</button>` +
+    `<button class="dd-btn" onclick="debugClearSave()">清空存档</button>` +
+    `<div class="dbg-warn">调试模式会写入 localStorage（记住开关状态）。要彻底关掉：连点日期 5 下。</div>`;
+}
+
+function debugSetStat(key, val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n)) return;
+  const max = STAT_MAX[key] !== undefined ? STAT_MAX[key] : 100;
+  state[key] = Math.max(0, Math.min(max, n));
+  updateUI();
+  renderDebugStats();
+  renderDebugActions();
+}
+
+function debugResetStats() {
+  state.emotion = 50; state.logic = 50; state.reputation = 0;
+  updateUI(); renderDebugStats(); renderDebugActions();
+  toast("数值已重置");
+}
+
+function debugClearTags() {
+  state.tags = {};
+  renderDebugStats(); renderDebugActions();
+  toast("选择倾向已清空");
+}
+
+function debugClearSave() {
+  clearSave();
+  toast("存档已清空");
+}
+
+function debugShowEnding() {
+  closeDebug();
+  showEnding();
+}
+
+/* 跳转：清理当前演出 -> 设定天数（默认从第 1 帖开始） */
+function debugJump(day, postIndex) {
+  closeDebug();
+  // 清掉可能残留的演出状态
+  cardMode = false; cardFloorArea = null; currentPost = null; queue = [];
+  lastFlashDay = 0;
+  $("post-card").style.display = "none";
+  $("post-card").classList.remove("event");
+  $("dialogue-box").style.display = "none";
+  $("choices").innerHTML = "";
+  $("day-transition").classList.remove("show", "event");
+  $("event-flash").classList.remove("show");
+  $("ending-screen").classList.remove("show");
+  endingShown = false;
+
+  state.day = Math.max(1, Math.min(
+    Object.keys(DAYS_META).reduce((a, b) => Math.max(a, Number(b)), 1), day));
+  state.postIndex = postIndex || 1;
+  updateUI();
+  saveGame(true);
+
+  if (postIndex && postIndex > 1) {
+    const post = postsData[state.day] && postsData[state.day][state.postIndex];
+    if (post) { playPost(post); return; }
+  }
+  startDay();
+}
+
+/* ============================ 键盘 ============================ */
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape") {
+    if ($("note-screen").classList.contains("show")) { closeNote(); return; }   // 作者的话 → 返回结局
+    closeGallery(); closeDebug(); closeLightbox(); return;
+  }
+  if ($("gallery-modal").classList.contains("show")) return;
+  if ($("debug-modal").classList.contains("show")) return;
+  if ($("ending-screen").classList.contains("show")) return;
+
+  const n = parseInt(ev.key, 10);
+  if (n >= 1 && n <= 9) {
+    const btns = document.querySelectorAll('#choices .choice-btn, #post-floor-area [data-role="choices"] .post-choice-btn');
+    if (btns[n - 1]) { btns[n - 1].click(); ev.preventDefault(); }
+    return;
+  }
+  if (ev.key === " " || ev.key === "Enter") {
+    const nextBtn = document.querySelector('#post-floor-area [data-role="nextpost"] .post-choice-btn');
+    if (nextBtn) { nextBtn.click(); ev.preventDefault(); return; }
+    if (cardMode) { cardClick(); ev.preventDefault(); }
+    ev.preventDefault();
+  }
+});
+
+/* ============================ 启动 ============================ */
+(function boot() {
+  try {
+    const ph = localStorage.getItem(PH_KEY);
+    if (ph === "0") showPlaceholders = false;
+    if (localStorage.getItem(DEBUG_KEY) === "1") {
+      debugMode = true;
+      const b = $("debug-btn");
+      if (b) b.style.display = "inline-block";
+      const dt = $("ui-date");
+      if (dt) dt.classList.add("debug-on");
+    }
+  } catch (e) {}
+  const phBtn = $("ph-btn");
+  if (phBtn) {
+    phBtn.textContent = showPlaceholders ? "配图位：显示" : "配图位：隐藏";
+    phBtn.style.display = "none";     // 有缺图时由 layoutCard() 露出来
+  }
+  const d = loadGame();
+  if (d && d.state) {
+    $("title-continue").style.display = "inline-block";
+    $("title-continue").textContent = `继 续 上 次（${calcDate(d.state.day)}）`;
+  }
+  const seen = loadEndings();
+  state.seenEndings = seen;
+  updateUndoBtn();
+})();
+</script>
+</body>
+</html>
